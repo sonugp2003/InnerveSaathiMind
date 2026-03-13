@@ -75,6 +75,7 @@ def health() -> dict[str, object]:
         "engine": assistant.engine_name,
         "active_agent": assistant.active_agent,
         "prefer_gemini_agent": settings.prefer_gemini_agent,
+        "gemini_only_chat": settings.gemini_only_chat,
         "vertex_enabled": assistant.vertex_enabled,
         "gemini_enabled": assistant.gemini_api_enabled,
         "gemini_model": settings.gemini_model,

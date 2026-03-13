@@ -74,6 +74,16 @@ class WellnessAssistant:
                 "If you feel in immediate danger, call emergency services and stay with a trusted person."
             )
 
+        if self.settings.gemini_only_chat:
+            if not self.gemini_api_enabled:
+                self.error = "Gemini-only mode enabled but GEMINI_API_KEY is not configured."
+                return self._gemini_unavailable_reply(language=language, missing_key=True)
+            try:
+                return self._generate_gemini_api_reply(message, history, language)
+            except Exception as exc:
+                self.error = f"Gemini API runtime failed: {exc}"
+                return self._gemini_unavailable_reply(language=language)
+
         if self.gemini_api_enabled and self.settings.prefer_gemini_agent:
             try:
                 return self._generate_gemini_api_reply(message, history, language)
@@ -93,6 +103,20 @@ class WellnessAssistant:
                 self.error = f"Gemini API runtime failed: {exc}"
 
         return self._generate_local_reply(message, history, language, risk_level)
+
+    def _gemini_unavailable_reply(self, language: str, missing_key: bool = False) -> str:
+        if missing_key:
+            return (
+                "Gemini is not configured for chat right now. Please ask the admin to set GEMINI_API_KEY."
+                if language == "english"
+                else "Gemini abhi configure nahi hai. Please admin se bolo GEMINI_API_KEY set karein."
+            )
+
+        return (
+            "I can respond only through Gemini right now, and Gemini is temporarily unavailable. Please try again in a minute."
+            if language == "english"
+            else "Main abhi sirf Gemini se reply karta hoon, aur Gemini temporary unavailable hai. Please 1 minute baad dobara try karo."
+        )
 
     def _build_agent_prompt(
         self,
@@ -286,12 +310,12 @@ User message:
 
         candidates = body.get("candidates", [])
         if not candidates:
-            return self._generate_local_reply(message, history, language, "low")
+            raise RuntimeError("Gemini API returned no candidates.")
 
         parts = candidates[0].get("content", {}).get("parts", [])
         text = self._clean_model_text("".join([str(item.get("text", "")) for item in parts]))
         if not text or self._looks_incomplete(text):
-            return self._generate_local_reply(message, history, language, "low")
+            raise RuntimeError("Gemini API returned empty or incomplete text.")
 
         return text
 

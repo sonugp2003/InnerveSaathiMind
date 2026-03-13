@@ -18,6 +18,7 @@ class Settings:
     app_name: str = "SaathiMind API"
     use_vertex_ai: bool = _as_bool("USE_VERTEX_AI", False)
     prefer_gemini_agent: bool = _as_bool("PREFER_GEMINI_AGENT", True)
+    gemini_only_chat: bool = _as_bool("GEMINI_ONLY_CHAT", True)
     gemini_agent_name: str = os.getenv("GEMINI_AGENT_NAME", "SaathiMind-Gemini-Agent").strip()
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "").strip()
     gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
