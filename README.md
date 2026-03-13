@@ -75,6 +75,27 @@ This repo includes `render.yaml` so Render can auto-detect service settings.
 API health check endpoint:
 - `/api/health`
 
+## Deploy Full App on Vercel
+
+This repo now includes `vercel.json` to route all requests to FastAPI (`backend/main.py`).
+
+1. Open your Vercel project:
+   - `https://vercel.com/sonugp/saathi-mind/`
+2. Import/connect this GitHub repo (`sonugp2003/InnerveSaathiMind`) if not connected yet.
+3. In project settings, keep framework as `Other` and root directory as repository root.
+4. Deploy from branch `main`.
+
+After deploy, Vercel will serve:
+- Frontend page at `/`
+- Static assets at `/static/*`
+- API routes at `/api/*`
+
+Optional environment variables (only if you want Vertex AI mode):
+- `USE_VERTEX_AI=true`
+- `GOOGLE_CLOUD_PROJECT=...`
+- `GOOGLE_CLOUD_LOCATION=asia-south1`
+- `VERTEX_MODEL=gemini-1.5-flash`
+
 ## Google Cloud setup (optional)
 
 If you want real generative responses from Vertex AI:
