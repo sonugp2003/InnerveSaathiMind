@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, Query
@@ -11,6 +12,8 @@ from backend.config import Settings
 from backend.models import (
     ChatRequest,
     ChatResponse,
+    CounsellorBookingRequest,
+    CounsellorBookingResponse,
     CheckInRequest,
     CheckInResponse,
     ResourceResponse,
@@ -24,6 +27,27 @@ from backend.services.safety import assess_text
 settings = Settings()
 assistant = WellnessAssistant(settings)
 resource_store = ResourceStore()
+
+COUNSELLORS = [
+    {
+        "name": "Dr. Ananya Rao",
+        "languages": {"english", "hindi", "hinglish", "multilingual"},
+        "modes": {"video", "phone", "chat"},
+        "city": "Bengaluru",
+    },
+    {
+        "name": "Dr. Kabir Sharma",
+        "languages": {"english", "hindi", "multilingual"},
+        "modes": {"video", "phone", "in-person"},
+        "city": "Delhi",
+    },
+    {
+        "name": "Dr. Meera Iyer",
+        "languages": {"english", "hinglish"},
+        "modes": {"video", "chat"},
+        "city": "Mumbai",
+    },
+]
 
 app = FastAPI(title=settings.app_name)
 app.add_middleware(
@@ -129,3 +153,50 @@ def resources(
 ) -> ResourceResponse:
     results = resource_store.search(query=q, mode=mode, language=language)
     return ResourceResponse(resources=results)
+
+
+@app.post("/api/counsellor-booking", response_model=CounsellorBookingResponse)
+def counsellor_booking(request: CounsellorBookingRequest) -> CounsellorBookingResponse:
+    concern_text = request.concern or ""
+    report = assess_text(concern_text)
+
+    language = request.language
+    mode = request.preferred_mode
+
+    assigned = next(
+        (
+            item
+            for item in COUNSELLORS
+            if language in item["languages"] and mode in item["modes"]
+        ),
+        None,
+    )
+    if assigned is None:
+        assigned = next((item for item in COUNSELLORS if mode in item["modes"]), COUNSELLORS[0])
+
+    booking_id = f"SM-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+    scheduled_at = f"{request.preferred_date} {request.preferred_time}"
+
+    urgent_help_recommended = bool(report["immediate_help"])
+    status = "priority-support" if urgent_help_recommended else "confirmed"
+    if urgent_help_recommended:
+        message = (
+            "Your counsellor request is marked as priority. Please contact Tele-MANAS (14416) or "
+            "Kiran (1800-599-0019) now while we line up support."
+        )
+    else:
+        message = (
+            f"Your session is booked with {assigned['name']}. Please keep your phone and email reachable "
+            "for confirmation updates."
+        )
+
+    return CounsellorBookingResponse(
+        booking_id=booking_id,
+        status=status,
+        assigned_counsellor=str(assigned["name"]),
+        assigned_mode=request.preferred_mode,
+        scheduled_at=scheduled_at,
+        message=message,
+        urgent_help_recommended=urgent_help_recommended,
+        urgent_message=report["guidance"] if urgent_help_recommended else None,
+    )

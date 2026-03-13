@@ -62,3 +62,25 @@ class Resource(BaseModel):
 
 class ResourceResponse(BaseModel):
     resources: list[Resource]
+
+
+class CounsellorBookingRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=80)
+    contact: str = Field(min_length=6, max_length=120)
+    preferred_mode: Literal["video", "phone", "chat", "in-person"] = "video"
+    language: Literal["english", "hindi", "hinglish", "multilingual"] = "english"
+    preferred_date: str = Field(min_length=8, max_length=20)
+    preferred_time: str = Field(min_length=3, max_length=20)
+    city: str | None = Field(default=None, max_length=80)
+    concern: str | None = Field(default=None, max_length=600)
+
+
+class CounsellorBookingResponse(BaseModel):
+    booking_id: str
+    status: Literal["confirmed", "priority-support"]
+    assigned_counsellor: str
+    assigned_mode: str
+    scheduled_at: str
+    message: str
+    urgent_help_recommended: bool = False
+    urgent_message: str | None = None

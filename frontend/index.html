@@ -172,6 +172,51 @@
 
             <div id="resource-list" class="resource-list"></div>
           </article>
+
+          <article class="card" id="booking-section">
+            <div class="card-head">
+              <h2>Book a Counsellor</h2>
+              <p>Request a confidential counselling slot with priority support screening.</p>
+            </div>
+
+            <form id="booking-form" class="booking-form">
+              <input id="booking-name" type="text" maxlength="80" placeholder="Your name" required />
+              <input id="booking-contact" type="text" maxlength="120" placeholder="Phone or email" required />
+
+              <div class="booking-row">
+                <select id="booking-mode" required>
+                  <option value="video">Video</option>
+                  <option value="phone">Phone</option>
+                  <option value="chat">Chat</option>
+                  <option value="in-person">In-person</option>
+                </select>
+                <select id="booking-language" required>
+                  <option value="english">English</option>
+                  <option value="hindi">Hindi</option>
+                  <option value="hinglish" selected>Hinglish</option>
+                  <option value="multilingual">Multilingual</option>
+                </select>
+              </div>
+
+              <div class="booking-row">
+                <input id="booking-date" type="date" required />
+                <input id="booking-time" type="time" required />
+              </div>
+
+              <input id="booking-city" type="text" maxlength="80" placeholder="City (optional)" />
+              <textarea
+                id="booking-concern"
+                rows="3"
+                maxlength="600"
+                placeholder="Brief concern (optional)"
+              ></textarea>
+
+              <button type="submit">Request Counsellor Slot</button>
+            </form>
+
+            <p class="booking-note">If risk is high, immediate helpline guidance appears along with priority handling.</p>
+            <div id="booking-result" class="result-box"></div>
+          </article>
         </div>
       </section>
     </main>

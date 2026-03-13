@@ -14,12 +14,36 @@ const checkinResult = document.getElementById('checkin-result');
 const resourceForm = document.getElementById('resource-form');
 const resourceList = document.getElementById('resource-list');
 
+const bookingForm = document.getElementById('booking-form');
+const bookingResult = document.getElementById('booking-result');
+const bookingDateInput = document.getElementById('booking-date');
+const bookingTimeInput = document.getElementById('booking-time');
+
 const quickPrompts = document.getElementById('quick-prompts');
 
 const history = [];
 const API_BASE = (window.SAATHIMIND_API_BASE || '').replace(/\/+$/, '');
 const IS_GITHUB_PAGES = window.location.hostname.endsWith('github.io');
 let resourceCache = null;
+const LOCAL_BOOKING_STORAGE_KEY = 'saathimind_bookings_v1';
+
+const LOCAL_COUNSELLORS = [
+  {
+    name: 'Dr. Ananya Rao',
+    languages: ['english', 'hindi', 'hinglish', 'multilingual'],
+    modes: ['video', 'phone', 'chat'],
+  },
+  {
+    name: 'Dr. Kabir Sharma',
+    languages: ['english', 'hindi', 'multilingual'],
+    modes: ['video', 'phone', 'in-person'],
+  },
+  {
+    name: 'Dr. Meera Iyer',
+    languages: ['english', 'hinglish'],
+    modes: ['video', 'chat'],
+  },
+];
 
 const HIGH_RISK_KEYWORDS = [
   'suicide',
@@ -370,6 +394,92 @@ async function healthRequest() {
   };
 }
 
+function pickCounsellor(language, mode) {
+  const exactMatch = LOCAL_COUNSELLORS.find((item) => item.languages.includes(language) && item.modes.includes(mode));
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  const modeMatch = LOCAL_COUNSELLORS.find((item) => item.modes.includes(mode));
+  if (modeMatch) {
+    return modeMatch;
+  }
+
+  return LOCAL_COUNSELLORS[0];
+}
+
+function createLocalBooking(payload) {
+  const concernReport = assessText(payload.concern || '');
+  const assigned = pickCounsellor(payload.language, payload.preferred_mode);
+  const bookingId = `SM-${Date.now()}`;
+  const urgentHelpRecommended = Boolean(concernReport.immediate_help);
+
+  const result = {
+    booking_id: bookingId,
+    status: urgentHelpRecommended ? 'priority-support' : 'confirmed',
+    assigned_counsellor: assigned.name,
+    assigned_mode: payload.preferred_mode,
+    scheduled_at: `${payload.preferred_date} ${payload.preferred_time}`,
+    message: urgentHelpRecommended
+      ? 'Your request is marked priority. Please contact Tele-MANAS (14416) or Kiran (1800-599-0019) now while support is arranged.'
+      : `Your session request is booked with ${assigned.name}. You will receive a confirmation update shortly.`,
+    urgent_help_recommended: urgentHelpRecommended,
+    urgent_message: urgentHelpRecommended ? concernReport.guidance : null,
+  };
+
+  try {
+    const raw = localStorage.getItem(LOCAL_BOOKING_STORAGE_KEY);
+    const existing = raw ? JSON.parse(raw) : [];
+    existing.push({
+      ...payload,
+      booking_id: bookingId,
+      created_at: new Date().toISOString(),
+    });
+    localStorage.setItem(LOCAL_BOOKING_STORAGE_KEY, JSON.stringify(existing.slice(-30)));
+  } catch {
+    // If storage is blocked, still return success to keep booking UX smooth.
+  }
+
+  return result;
+}
+
+async function bookingRequest(payload) {
+  if (shouldTryRemoteApi()) {
+    try {
+      return await fetchJson('/api/counsellor-booking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      // Fall back to local booking mode when API is unavailable.
+    }
+  }
+
+  return createLocalBooking(payload);
+}
+
+function initializeBookingDefaults() {
+  if (!bookingDateInput || !bookingTimeInput) {
+    return;
+  }
+
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  bookingDateInput.min = today;
+  if (!bookingDateInput.value) {
+    bookingDateInput.value = today;
+  }
+
+  const rounded = new Date(now.getTime() + 60 * 60 * 1000);
+  rounded.setMinutes(0, 0, 0);
+  const hh = String(rounded.getHours()).padStart(2, '0');
+  const mm = String(rounded.getMinutes()).padStart(2, '0');
+  if (!bookingTimeInput.value) {
+    bookingTimeInput.value = `${hh}:${mm}`;
+  }
+}
+
 appendMessage('assistant', 'Hi, I am SaathiMind. You can share anything here. What has been weighing on you today?');
 
 moodSlider.addEventListener('input', () => {
@@ -439,6 +549,40 @@ resourceForm.addEventListener('submit', async (event) => {
 
   await loadResources();
 });
+
+if (bookingForm) {
+  bookingForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const payload = {
+      name: document.getElementById('booking-name').value.trim(),
+      contact: document.getElementById('booking-contact').value.trim(),
+      preferred_mode: document.getElementById('booking-mode').value,
+      language: document.getElementById('booking-language').value,
+      preferred_date: document.getElementById('booking-date').value,
+      preferred_time: document.getElementById('booking-time').value,
+      city: document.getElementById('booking-city').value.trim(),
+      concern: document.getElementById('booking-concern').value.trim(),
+    };
+
+    if (!payload.name || !payload.contact || !payload.preferred_date || !payload.preferred_time) {
+      bookingResult.innerHTML = '<p>Please fill name, contact, date, and time to continue.</p>';
+      return;
+    }
+
+    bookingResult.innerHTML = '<p>Checking availability and matching counsellor...</p>';
+
+    try {
+      const booking = await bookingRequest(payload);
+      renderBookingResult(booking);
+      toggleEmergency(Boolean(booking.urgent_help_recommended));
+      bookingForm.reset();
+      initializeBookingDefaults();
+    } catch {
+      bookingResult.innerHTML = '<p>Could not complete booking right now. Please retry in a moment.</p>';
+    }
+  });
+}
 
 async function loadResources() {
   const query = document.getElementById('resource-query').value.trim();
@@ -526,6 +670,23 @@ function renderResources(resources) {
     .join('');
 }
 
+function renderBookingResult(booking) {
+  const status = booking.status === 'priority-support' ? 'Priority support' : 'Confirmed';
+  const urgentBlock = booking.urgent_message
+    ? `<p><strong>Urgent guidance:</strong> ${escapeHtml(booking.urgent_message)}</p>`
+    : '';
+
+  bookingResult.innerHTML = `
+    <p><strong>Status:</strong> ${escapeHtml(status)}</p>
+    <p><strong>Booking ID:</strong> ${escapeHtml(booking.booking_id || '')}</p>
+    <p><strong>Counsellor:</strong> ${escapeHtml(booking.assigned_counsellor || 'Assigned soon')}</p>
+    <p><strong>Mode:</strong> ${escapeHtml(booking.assigned_mode || '')}</p>
+    <p><strong>Scheduled:</strong> ${escapeHtml(booking.scheduled_at || '')}</p>
+    <p><strong>Message:</strong> ${escapeHtml(booking.message || '')}</p>
+    ${urgentBlock}
+  `;
+}
+
 function toggleEmergency(show) {
   emergencyBanner.classList.toggle('hidden', !show);
 }
@@ -541,3 +702,4 @@ function escapeHtml(value) {
 
 loadHealth();
 loadResources();
+initializeBookingDefaults();

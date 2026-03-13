@@ -8,6 +8,7 @@ SaathiMind is a working prototype for a confidential and empathetic youth mental
 - Safety screening that detects potential self-harm or crisis language and escalates with immediate helpline guidance.
 - Daily mood check-in with practical micro-actions and culturally relevant suggestions.
 - India-focused support directory (Tele-MANAS, Kiran, iCALL, and more).
+- Counsellor booking flow with mode/language preferences and priority handling for high-risk text.
 - Privacy-first UX: no login, no persistence, and clear confidentiality messaging.
 - Optional Google Cloud Vertex AI integration with a no-credentials local fallback.
 
@@ -122,3 +123,4 @@ This prototype is not a medical device and does not diagnose conditions. It is a
 2. Stigma concern: "I feel weak talking about mental health in my family."
 3. Crisis phrase test: "I feel like ending everything." (should trigger immediate help banner)
 4. Mood check-in with low mood and high stressors.
+5. Counsellor booking test with date/time and a brief concern.
