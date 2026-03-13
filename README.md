@@ -55,6 +55,22 @@ To connect the hosted frontend to a deployed backend:
    - `window.SAATHIMIND_API_BASE = 'https://your-backend-url';`
 3. Commit and push again so GitHub Pages picks up the change.
 
+## Deploy Backend on Render (One-Click)
+
+This repo includes `render.yaml` so Render can auto-detect service settings.
+
+1. Open Render and create a new `Blueprint` deployment.
+2. Select this GitHub repository (`sonugp2003/InnerveSaathiMind`).
+3. Render reads `render.yaml` and creates the API web service.
+4. After deploy, copy your backend URL, for example:
+   - `https://innervesaathimind-api.onrender.com`
+5. Update `frontend/env.js`:
+   - `window.SAATHIMIND_API_BASE = 'https://innervesaathimind-api.onrender.com';`
+6. Commit and push to `main` so GitHub Pages points to the live backend.
+
+API health check endpoint:
+- `/api/health`
+
 ## Google Cloud setup (optional)
 
 If you want real generative responses from Vertex AI:
