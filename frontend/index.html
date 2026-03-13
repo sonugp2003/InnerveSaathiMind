@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SaathiMind - Youth Wellness Prototype</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Urbanist:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="noise-layer"></div>
+    <div class="bg-orb orb-a"></div>
+    <div class="bg-orb orb-b"></div>
+
+    <main class="app-shell">
+      <nav class="topbar">
+        <div class="brand-wrap">
+          <span class="brand-dot"></span>
+          <span class="brand-name">SaathiMind</span>
+        </div>
+        <p class="trust-pill">Private by design | No login | Youth-first support</p>
+      </nav>
+
+      <header class="hero">
+        <div class="hero-copy-wrap">
+          <p class="eyebrow">AI companion for emotional resilience</p>
+          <h1>Talk. Reflect. Recover.</h1>
+          <p class="hero-copy">
+            A confidential, culturally sensitive wellness space for Indian students and young adults navigating stress,
+            stigma, and uncertainty.
+          </p>
+
+          <div class="hero-cta-row">
+            <a class="cta-solid" href="#chat-input">Start a private conversation</a>
+            <a class="cta-outline" href="#resource-form">Find trusted help</a>
+          </div>
+
+          <div class="hero-stats">
+            <article>
+              <strong>24x7</strong>
+              <span>Crisis routing support</span>
+            </article>
+            <article>
+              <strong>India-focused</strong>
+              <span>Helplines and care pathways</span>
+            </article>
+            <article>
+              <strong>Judgment-free</strong>
+              <span>Empathetic and practical guidance</span>
+            </article>
+          </div>
+        </div>
+
+        <div class="hero-side-panel">
+          <div class="status-wrap">
+            <span id="engine-status" class="status-badge">Checking AI engine...</span>
+            <p class="status-note">Prototype mode: informational support, not medical diagnosis.</p>
+          </div>
+          <div class="confidentiality-panel">
+            <h3>Confidentiality Promise</h3>
+            <p>
+              Designed for stigma-sensitive support. You can speak freely without creating an account.
+            </p>
+          </div>
+        </div>
+      </header>
+
+      <section id="emergency-banner" class="emergency-banner hidden">
+        <strong>Immediate support recommended:</strong>
+        Please contact Tele-MANAS (14416) or Kiran (1800-599-0019) now.
+      </section>
+
+      <section class="signal-strip" aria-label="trust indicators">
+        <article class="signal-card">
+          <h3>Stigma-aware tone</h3>
+          <p>Conversations are empathetic, culturally aware, and non-judgmental.</p>
+        </article>
+        <article class="signal-card">
+          <h3>Actionable micro-steps</h3>
+          <p>Every interaction suggests realistic next steps for today.</p>
+        </article>
+        <article class="signal-card">
+          <h3>Escalation safety</h3>
+          <p>Risk phrases trigger immediate human-help recommendations.</p>
+        </article>
+      </section>
+
+      <section class="grid-layout">
+        <article class="card chat-card" id="chat-section">
+          <div class="card-head">
+            <h2>Empathetic Chat</h2>
+            <p>Share thoughts in English or Hinglish. Your pace, your space.</p>
+          </div>
+
+          <div class="quick-prompts" id="quick-prompts">
+            <button type="button" data-prompt="I have exam anxiety and cannot focus.">Exam stress</button>
+            <button type="button" data-prompt="I feel judged when I talk about mental health.">Stigma</button>
+            <button type="button" data-prompt="I feel very lonely lately.">Loneliness</button>
+          </div>
+
+          <div id="chat-log" class="chat-log" aria-live="polite"></div>
+
+          <form id="chat-form" class="chat-form">
+            <select id="chat-language" aria-label="Language selection">
+              <option value="hinglish" selected>Hinglish</option>
+              <option value="english">English</option>
+            </select>
+            <input
+              id="chat-input"
+              type="text"
+              maxlength="1200"
+              placeholder="Type what you are feeling..."
+              required
+            />
+            <button type="submit">Send</button>
+          </form>
+
+          <div id="chat-actions" class="action-list"></div>
+        </article>
+
+        <div class="stacked">
+          <article class="card" id="checkin-section">
+            <div class="card-head">
+              <h2>Daily Mood Check-in</h2>
+              <p>Transform your emotional state into a practical plan.</p>
+            </div>
+
+            <form id="checkin-form" class="checkin-form">
+              <label for="mood">Mood (1 low - 10 good)</label>
+              <input id="mood" type="range" min="1" max="10" value="5" />
+              <output id="mood-value">5</output>
+
+              <label for="stressors">Stressors (comma separated)</label>
+              <input id="stressors" type="text" placeholder="exams, parents, sleep" />
+
+              <label for="note">Optional note</label>
+              <textarea id="note" rows="3" placeholder="Anything you want to share..."></textarea>
+
+              <button type="submit">Generate Plan</button>
+            </form>
+
+            <div id="checkin-result" class="result-box"></div>
+          </article>
+
+          <article class="card" id="resource-section">
+            <div class="card-head">
+              <h2>Find Help Resources</h2>
+              <p>India-focused helplines and support options.</p>
+            </div>
+
+            <form id="resource-form" class="resource-form">
+              <input id="resource-query" type="text" placeholder="search: crisis, student, counselling" />
+              <select id="resource-mode">
+                <option value="">Any mode</option>
+                <option value="phone">Phone</option>
+                <option value="online">Online</option>
+                <option value="in-person">In-person</option>
+              </select>
+              <select id="resource-language">
+                <option value="">Any language</option>
+                <option value="hindi">Hindi</option>
+                <option value="english">English</option>
+                <option value="multilingual">Multilingual</option>
+              </select>
+              <button type="submit">Search</button>
+            </form>
+
+            <div id="resource-list" class="resource-list"></div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

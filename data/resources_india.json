@@ -1,0 +1,98 @@
+[
+  {
+    "id": "telemanas",
+    "name": "Tele-MANAS",
+    "mode": "Phone",
+    "contact": "14416 or 1-800-891-4416",
+    "language": "Multilingual",
+    "coverage": "India",
+    "cost": "Free",
+    "hours": "24x7",
+    "notes": "Government mental health helpline with trained counsellors.",
+    "tags": ["crisis", "support", "student"]
+  },
+  {
+    "id": "kiran",
+    "name": "Kiran Mental Health Helpline",
+    "mode": "Phone",
+    "contact": "1800-599-0019",
+    "language": "Multilingual",
+    "coverage": "India",
+    "cost": "Free",
+    "hours": "24x7",
+    "notes": "National mental health support line for immediate guidance.",
+    "tags": ["crisis", "support"]
+  },
+  {
+    "id": "icall",
+    "name": "iCALL by TISS",
+    "mode": "Phone and Email",
+    "contact": "9152987821 | icall@tiss.edu",
+    "language": "Hindi and English",
+    "coverage": "India",
+    "cost": "Free",
+    "hours": "Mon-Sat, 10 AM-8 PM",
+    "notes": "Professional psychosocial counselling and referrals.",
+    "tags": ["counselling", "youth", "student"]
+  },
+  {
+    "id": "aasra",
+    "name": "AASRA",
+    "mode": "Phone",
+    "contact": "+91-22-27546669",
+    "language": "Hindi and English",
+    "coverage": "India",
+    "cost": "Free",
+    "hours": "24x7",
+    "notes": "Crisis and suicide prevention support.",
+    "tags": ["crisis", "suicide-prevention"]
+  },
+  {
+    "id": "fortis-school",
+    "name": "Fortis School Mental Health Program",
+    "mode": "Online and In-person",
+    "contact": "Via school partnerships",
+    "language": "English",
+    "coverage": "Multiple cities",
+    "cost": "Institution-linked",
+    "hours": "Varies",
+    "notes": "School-oriented emotional wellness workshops and screening.",
+    "tags": ["school", "awareness", "prevention"]
+  },
+  {
+    "id": "manochikitsa",
+    "name": "NIMHANS e-Manas / Tele Psychiatry",
+    "mode": "Online and Phone",
+    "contact": "https://nimhans.ac.in",
+    "language": "English and regional",
+    "coverage": "India",
+    "cost": "Low/Free programs",
+    "hours": "Varies",
+    "notes": "Tertiary mental health support and tele-consultation pathways.",
+    "tags": ["psychiatry", "referral", "clinical"]
+  },
+  {
+    "id": "state-dmhp",
+    "name": "District Mental Health Programme (DMHP)",
+    "mode": "In-person",
+    "contact": "Nearest district hospital",
+    "language": "Regional",
+    "coverage": "India",
+    "cost": "Low/Free",
+    "hours": "Hospital hours",
+    "notes": "Public sector counselling and psychiatric services at district level.",
+    "tags": ["public-health", "clinical", "referral"]
+  },
+  {
+    "id": "peer-circle",
+    "name": "Campus Peer Support Circle",
+    "mode": "In-person and Chat",
+    "contact": "Campus wellness cell",
+    "language": "English, Hindi, Hinglish",
+    "coverage": "Campus-level",
+    "cost": "Free",
+    "hours": "Evening groups",
+    "notes": "Student-led safe conversations and stigma reduction circles.",
+    "tags": ["peer", "student", "community"]
+  }
+]
