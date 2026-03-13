@@ -76,6 +76,43 @@ class WellnessAssistant:
 
         return self._generate_local_reply(message, history, language, risk_level)
 
+    def _clean_model_text(self, text: str) -> str:
+        # Normalize spacing so model outputs render like a natural chat message.
+        return re.sub(r"\s+", " ", text).strip()
+
+    def _looks_incomplete(self, text: str) -> bool:
+        value = self._clean_model_text(text)
+        if not value:
+            return True
+
+        words = value.split()
+        tail = value.lower()
+        trailing_connectors = (
+            "and",
+            "or",
+            "because",
+            "like",
+            "when",
+            "if",
+            "to",
+            "but",
+            "so",
+            "that",
+        )
+
+        if value.endswith(("...", ",", ":", ";", "-")):
+            return True
+        if any(tail.endswith(f" {token}") or tail == token for token in trailing_connectors):
+            return True
+        if len(words) <= 8 and not re.search(r"[.!?]\s*$", value):
+            return True
+        if len(words) <= 24 and not re.search(r"[.!?]\s*$", value):
+            return True
+        if re.search(r"\b(a|an|the|my|your|our|their|to|for|with|of|in|on|at|from|that|this|these|those|feel|feels|feeling|been|being|quite|very|really)\s*$", tail):
+            return True
+
+        return False
+
     def generate_checkin_plan(
         self,
         mood: int,
@@ -141,7 +178,7 @@ class WellnessAssistant:
         assert self.model is not None
 
         style_hint = (
-            "Use natural Hinglish that sounds like a caring friend in India."
+            "Reply in natural Roman Hinglish (casual but respectful), like a caring friend in India."
             if language == "hinglish"
             else "Use warm natural English that sounds like a caring human."
         )
@@ -158,9 +195,11 @@ Guidelines:
 - Use 2-5 natural sentences.
 - Offer 1-2 practical next steps (more only when necessary).
 - Avoid repeating the user's exact words unless useful.
+- Avoid repetitive canned openers like "I hear you" on every turn.
 - Ask a follow-up question only when it genuinely helps.
 - Keep continuity with the latest user context.
 - Keep tone warm and simple, like a real person texting support.
+- Never end mid-sentence; always complete the final thought naturally.
 - Keep response under 170 words.
 - {style_hint}
 
@@ -173,11 +212,14 @@ User message:
 
         response = self.model.generate_content(
             prompt,
-            generation_config={"temperature": 0.72, "max_output_tokens": 280},
+            generation_config={"temperature": 0.78, "max_output_tokens": 360},
         )
 
-        text = getattr(response, "text", "")
-        return text.strip() if text else self._generate_local_reply(message, history, language, "low")
+        text = self._clean_model_text(getattr(response, "text", ""))
+        if not text or self._looks_incomplete(text):
+            return self._generate_local_reply(message, history, language, "low")
+
+        return text
 
     def _generate_gemini_api_reply(
         self,
@@ -186,7 +228,7 @@ User message:
         language: str,
     ) -> str:
         style_hint = (
-            "Use natural Hinglish that sounds like a caring friend in India."
+            "Reply in natural Roman Hinglish (casual but respectful), like a caring friend in India."
             if language == "hinglish"
             else "Use warm natural English that sounds like a caring human."
         )
@@ -203,9 +245,11 @@ Guidelines:
 - Use 2-5 natural sentences.
 - Offer 1-2 practical next steps (more only when necessary).
 - Avoid repeating the user's exact words unless useful.
+- Avoid repetitive canned openers like "I hear you" on every turn.
 - Ask a follow-up question only when it genuinely helps.
 - Keep continuity with the latest user context.
 - Keep tone warm and simple, like a real person texting support.
+- Never end mid-sentence; always complete the final thought naturally.
 - Keep response under 170 words.
 - {style_hint}
 
@@ -219,7 +263,7 @@ User message:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.settings.gemini_model}:generateContent"
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.72, "maxOutputTokens": 280},
+            "generationConfig": {"temperature": 0.78, "maxOutputTokens": 360},
         }
 
         response = httpx.post(
@@ -238,8 +282,11 @@ User message:
             return self._generate_local_reply(message, history, language, "low")
 
         parts = candidates[0].get("content", {}).get("parts", [])
-        text = "".join([str(item.get("text", "")) for item in parts]).strip()
-        return text if text else self._generate_local_reply(message, history, language, "low")
+        text = self._clean_model_text("".join([str(item.get("text", "")) for item in parts]))
+        if not text or self._looks_incomplete(text):
+            return self._generate_local_reply(message, history, language, "low")
+
+        return text
 
     def _generate_local_reply(
         self,
