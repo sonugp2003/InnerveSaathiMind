@@ -74,7 +74,7 @@ class WellnessAssistant:
             except Exception as exc:
                 self.error = f"Gemini API runtime failed: {exc}"
 
-        return self._generate_local_reply(message, language, risk_level)
+        return self._generate_local_reply(message, history, language, risk_level)
 
     def generate_checkin_plan(
         self,
@@ -159,6 +159,8 @@ Guidelines:
 - Offer 1-2 practical next steps (more only when necessary).
 - Avoid repeating the user's exact words unless useful.
 - Ask a follow-up question only when it genuinely helps.
+- Keep continuity with the latest user context.
+- Keep tone warm and simple, like a real person texting support.
 - Keep response under 170 words.
 - {style_hint}
 
@@ -171,11 +173,11 @@ User message:
 
         response = self.model.generate_content(
             prompt,
-            generation_config={"temperature": 0.6, "max_output_tokens": 280},
+            generation_config={"temperature": 0.72, "max_output_tokens": 280},
         )
 
         text = getattr(response, "text", "")
-        return text.strip() if text else self._generate_local_reply(message, language, "low")
+        return text.strip() if text else self._generate_local_reply(message, history, language, "low")
 
     def _generate_gemini_api_reply(
         self,
@@ -202,6 +204,8 @@ Guidelines:
 - Offer 1-2 practical next steps (more only when necessary).
 - Avoid repeating the user's exact words unless useful.
 - Ask a follow-up question only when it genuinely helps.
+- Keep continuity with the latest user context.
+- Keep tone warm and simple, like a real person texting support.
 - Keep response under 170 words.
 - {style_hint}
 
@@ -215,7 +219,7 @@ User message:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.settings.gemini_model}:generateContent"
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.6, "maxOutputTokens": 280},
+            "generationConfig": {"temperature": 0.72, "maxOutputTokens": 280},
         }
 
         response = httpx.post(
@@ -231,16 +235,31 @@ User message:
 
         candidates = body.get("candidates", [])
         if not candidates:
-            return self._generate_local_reply(message, language, "low")
+            return self._generate_local_reply(message, history, language, "low")
 
         parts = candidates[0].get("content", {}).get("parts", [])
         text = "".join([str(item.get("text", "")) for item in parts]).strip()
-        return text if text else self._generate_local_reply(message, language, "low")
+        return text if text else self._generate_local_reply(message, history, language, "low")
 
-    def _generate_local_reply(self, message: str, language: str, risk_level: str) -> str:
+    def _generate_local_reply(
+        self,
+        message: str,
+        history: list[dict[str, str]],
+        language: str,
+        risk_level: str,
+    ) -> str:
         msg = re.sub(r"\s+", " ", message.lower()).strip()
         is_hinglish = language == "hinglish"
         word_count = len(msg.split())
+
+        last_user_message = ""
+        for item in reversed(history):
+            if str(item.get("role", "")) != "user":
+                continue
+            text = str(item.get("content", "")).strip()
+            if text:
+                last_user_message = re.sub(r"\s+", " ", text.lower()).strip()
+                break
 
         def pick_variant(seed_text: str, options: list[str]) -> str:
             if not options:
@@ -261,6 +280,23 @@ User message:
         is_thanks = bool(re.search(r"\b(thank you|thanks|thx|shukriya|dhanyavaad|dhanyavad)\b", msg))
         is_affection = bool(re.search(r"\b(i love you|love u|luv u|love you)\b", msg))
         is_short_number = bool(re.fullmatch(r"\d{1,2}", msg))
+        is_brief_ack = bool(re.fullmatch(r"(ok|okay|hmm+|h|haan|han|yeah|yep|no|nah|k|theek|thik)", msg))
+
+        def infer_theme(text: str) -> str:
+            if not text:
+                return "general"
+            if any(token in text for token in ["exam", "study", "marks"]):
+                return "exam"
+            if any(token in text for token in ["alone", "lonely", "no one"]):
+                return "loneliness"
+            if any(token in text for token in ["family", "judge", "log kya"]):
+                return "stigma"
+            if any(token in text for token in ["sleep", "tired", "burnout"]):
+                return "sleep"
+            return "general"
+
+        theme = infer_theme(last_user_message)
+        has_context = bool(last_user_message)
 
         if is_greeting:
             core = (
@@ -301,6 +337,12 @@ User message:
                 "Lagta hai aapne quick mood number share kiya. Accha kiya."
                 if is_hinglish
                 else "Looks like you shared a quick mood number. That helps."
+            )
+        elif is_brief_ack and has_context:
+            core = (
+                "Theek hai, hum aaram se chalenge. Agar chaaho to pehle ek chhota step decide karte hain."
+                if is_hinglish
+                else "That is okay, we can go slowly. If you want, we can choose one tiny next step first."
             )
         elif is_thanks:
             core = (
@@ -369,7 +411,33 @@ User message:
             )
             core = f"{reflective_prefix} {action_prompt}"
 
-        ask_follow_up = risk_level == "medium" or word_count <= 5 or is_short_number or is_affection
+        if word_count <= 3 and has_context:
+            if theme == "exam":
+                core = (
+                    "Samajh gaya. Exam pressure ka load lagatar feel ho raha hoga."
+                    if is_hinglish
+                    else "I hear you. The exam pressure probably feels nonstop right now."
+                )
+            elif theme == "loneliness":
+                core = (
+                    "Samajh raha hoon. Akelapan jab stretch hota hai to bahut draining lagta hai."
+                    if is_hinglish
+                    else "I hear you. Ongoing loneliness can feel deeply draining."
+                )
+            elif theme == "stigma":
+                core = (
+                    "Haan, judgement ka fear bahut real lagta hai. Aapka feel karna valid hai."
+                    if is_hinglish
+                    else "Yes, fear of judgement can feel very real. What you are feeling is valid."
+                )
+
+        ask_follow_up = (
+            risk_level == "medium"
+            or word_count <= 5
+            or is_short_number
+            or is_affection
+            or is_brief_ack
+        )
         if risk_level == "medium":
             follow_up = (
                 pick_variant(

@@ -193,7 +193,21 @@ function pickVariant(seedText, options) {
   return options[hash % options.length];
 }
 
-function generateLocalReply(message, language, riskLevel) {
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function inferTheme(text) {
+  const value = normalizeText(text || '');
+  if (!value) return 'general';
+  if (['exam', 'study', 'marks'].some((token) => value.includes(token))) return 'exam';
+  if (['alone', 'lonely', 'no one'].some((token) => value.includes(token))) return 'loneliness';
+  if (['family', 'judge', 'log kya'].some((token) => value.includes(token))) return 'stigma';
+  if (['sleep', 'tired', 'burnout'].some((token) => value.includes(token))) return 'sleep';
+  return 'general';
+}
+
+function generateLocalReply(message, language, riskLevel, conversationHistory = []) {
   if (riskLevel === 'high') {
     return (
       'I am really glad you shared this. Your safety matters more than anything right now. ' +
@@ -205,6 +219,11 @@ function generateLocalReply(message, language, riskLevel) {
   const msg = normalizeText(message);
   const isHinglish = language === 'hinglish';
   const wordCount = msg.split(' ').filter(Boolean).length;
+  const lastUser = [...conversationHistory]
+    .reverse()
+    .find((item) => item && item.role === 'user' && String(item.content || '').trim());
+  const hasContext = Boolean(lastUser);
+  const theme = inferTheme(lastUser?.content || '');
   let core;
 
   const isGreeting = /\b(hi|hii|hello|hey|namaste)\b/.test(msg) && msg.split(' ').length <= 5;
@@ -215,6 +234,7 @@ function generateLocalReply(message, language, riskLevel) {
   const isThanks = /\b(thank you|thanks|thx|shukriya|dhanyavaad|dhanyavad)\b/.test(msg);
   const isAffection = /\b(i love you|love u|luv u|love you)\b/.test(msg);
   const isShortNumber = /^\d{1,2}$/.test(msg);
+  const isBriefAck = /^(ok|okay|hmm+|h|haan|han|yeah|yep|no|nah|k|theek|thik)$/.test(msg);
 
   if (isGreeting) {
     core = isHinglish
@@ -240,6 +260,10 @@ function generateLocalReply(message, language, riskLevel) {
     core = isHinglish
       ? 'Lagta hai aapne quick mood number share kiya. Accha kiya.'
       : 'Looks like you shared a quick mood number. That helps.';
+  } else if (isBriefAck && hasContext) {
+    core = isHinglish
+      ? 'Theek hai, hum aaram se chalenge. Agar chaaho to pehle ek chhota step decide karte hain.'
+      : 'That is okay, we can go slowly. If you want, we can choose one tiny next step first.';
   } else if (isThanks) {
     core = isHinglish
       ? 'Aapne trust kiya, uske liye thank you. Hum aapke pace pe hi chalenge.'
@@ -280,7 +304,23 @@ function generateLocalReply(message, language, riskLevel) {
     core = `${reflectivePrefix} ${actionPrompt}`;
   }
 
-  const askFollowUp = riskLevel === 'medium' || wordCount <= 5 || isShortNumber || isAffection;
+  if (wordCount <= 3 && hasContext) {
+    if (theme === 'exam') {
+      core = isHinglish
+        ? 'Samajh gaya. Exam pressure ka load lagatar feel ho raha hoga.'
+        : 'I hear you. The exam pressure probably feels nonstop right now.';
+    } else if (theme === 'loneliness') {
+      core = isHinglish
+        ? 'Samajh raha hoon. Akelapan jab stretch hota hai to bahut draining lagta hai.'
+        : 'I hear you. Ongoing loneliness can feel deeply draining.';
+    } else if (theme === 'stigma') {
+      core = isHinglish
+        ? 'Haan, judgement ka fear bahut real lagta hai. Aapka feel karna valid hai.'
+        : 'Yes, fear of judgement can feel very real. What you are feeling is valid.';
+    }
+  }
+
+  const askFollowUp = riskLevel === 'medium' || wordCount <= 5 || isShortNumber || isAffection || isBriefAck;
   let followUp;
   if (riskLevel === 'medium') {
     followUp = isHinglish
@@ -427,7 +467,7 @@ async function chatRequest(payload) {
 
   const report = assessText(payload.message);
   return {
-    reply: generateLocalReply(payload.message, payload.language, report.risk_level),
+    reply: generateLocalReply(payload.message, payload.language, report.risk_level, payload.history || []),
     safety_flags: report.triggers,
     suggested_actions: buildSuggestedActions(report.risk_level),
     escalate: Boolean(report.immediate_help),
@@ -602,7 +642,7 @@ chatForm.addEventListener('submit', async (event) => {
 
   appendMessage('user', message);
   chatInput.value = '';
-  const pendingBubble = appendMessage('assistant pending', 'SaathiMind is reflecting...', false);
+  const pendingBubble = appendMessage('assistant pending', 'Hmm... give me a sec, I am with you.', false);
 
   try {
     const payload = {
@@ -611,7 +651,14 @@ chatForm.addEventListener('submit', async (event) => {
       history: history.slice(-6),
     };
 
+    const startedAt = Date.now();
     const data = await chatRequest(payload);
+    const elapsed = Date.now() - startedAt;
+    const minimumReplyMs = 550;
+    if (elapsed < minimumReplyMs) {
+      await sleep(minimumReplyMs - elapsed);
+    }
+
     pendingBubble.className = 'bubble assistant';
     pendingBubble.textContent = data.reply || 'I am here with you.';
     renderActions(data.suggested_actions || []);
