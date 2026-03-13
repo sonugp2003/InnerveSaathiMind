@@ -17,6 +17,11 @@ const resourceList = document.getElementById('resource-list');
 const quickPrompts = document.getElementById('quick-prompts');
 
 const history = [];
+const API_BASE = (window.SAATHIMIND_API_BASE || '').replace(/\/+$/, '');
+
+function apiUrl(path) {
+  return API_BASE ? `${API_BASE}${path}` : path;
+}
 
 appendMessage('assistant', 'Hi, I am SaathiMind. You can share anything here. What has been weighing on you today?');
 
@@ -47,7 +52,7 @@ chatForm.addEventListener('submit', async (event) => {
       history: history.slice(-6),
     };
 
-    const response = await fetch('/api/chat', {
+    const response = await fetch(apiUrl('/api/chat'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -75,7 +80,7 @@ checkinForm.addEventListener('submit', async (event) => {
     .filter(Boolean);
 
   try {
-    const response = await fetch('/api/check-in', {
+    const response = await fetch(apiUrl('/api/check-in'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -113,7 +118,7 @@ async function loadResources() {
   resourceList.innerHTML = '<p>Loading trusted resources...</p>';
 
   try {
-    const response = await fetch(`/api/resources?${params.toString()}`);
+    const response = await fetch(apiUrl(`/api/resources?${params.toString()}`));
     const data = await response.json();
     renderResources(data.resources || []);
   } catch (error) {
@@ -123,7 +128,7 @@ async function loadResources() {
 
 async function loadHealth() {
   try {
-    const response = await fetch('/api/health');
+    const response = await fetch(apiUrl('/api/health'));
     const data = await response.json();
     if (data.vertex_enabled) {
       engineStatus.textContent = `AI Engine: Vertex (${data.vertex_model})`;

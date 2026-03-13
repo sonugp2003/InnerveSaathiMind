@@ -34,6 +34,27 @@ SaathiMind is a working prototype for a confidential and empathetic youth mental
    ```
 5. Open `http://127.0.0.1:8000`.
 
+## Host on GitHub Pages
+
+This repo now includes a workflow at `.github/workflows/deploy-pages.yml` that publishes the frontend to GitHub Pages on every push to `main`.
+
+1. In GitHub, open your repository settings.
+2. Go to `Settings -> Pages`.
+3. Under `Build and deployment`, choose `Source: GitHub Actions`.
+4. Push to `main` (or run the workflow manually from `Actions`).
+5. Your site will be available at:
+   - `https://sonugp2003.github.io/InnerveSaathiMind/`
+
+Important:
+- GitHub Pages hosts only static files.
+- Chat, check-in, resources, and health features need a running backend API.
+
+To connect the hosted frontend to a deployed backend:
+1. Deploy this FastAPI backend to a service like Render, Railway, or Cloud Run.
+2. Edit `frontend/env.js` and set:
+   - `window.SAATHIMIND_API_BASE = 'https://your-backend-url';`
+3. Commit and push again so GitHub Pages picks up the change.
+
 ## Google Cloud setup (optional)
 
 If you want real generative responses from Vertex AI:
