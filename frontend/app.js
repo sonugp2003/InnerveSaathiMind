@@ -249,10 +249,13 @@ function generateLocalReply(message, language, riskLevel, conversationHistory = 
   const isAffection = /\b(i love you|love u|luv u|love you)\b/.test(msg);
   const isShortNumber = /^\d{1,2}$/.test(msg);
   const isBriefAck = /^(ok|okay|hmm+|h|haan|han|yeah|yep|no|nah|k|theek|thik)$/.test(msg);
+  const isEmotionLabel = /^(mad|angry|sad|happy|anxious|stressed|worried|gussa|dukhi|khush)$/.test(msg);
+  const hasEmotionWord = /\b(mad|angry|sad|happy|anxious|stressed|worried|gussa|dukhi|khush)\b/.test(msg);
   const isActionRequest =
     /\b(what small step|small step|next step|what should i do|what do i do now|abhi kya karu|ab kya karu|kya karu|kya karoon)\b/.test(
       msg
     );
+  let emotionFollowUp = null;
 
   if (isGreeting) {
     core = isHinglish
@@ -274,6 +277,58 @@ function generateLocalReply(message, language, riskLevel, conversationHistory = 
     core = isHinglish
       ? 'Aww, thank you. Main yahan genuinely support karne ke liye hoon.'
       : 'Thank you, that is kind. I am here to support you genuinely.';
+  } else if (isEmotionLabel && ['mad', 'angry', 'gussa'].includes(msg)) {
+    core = isHinglish
+      ? 'Thanks, aapne clearly emotion name kiya, that is strong self-awareness.'
+      : 'Thanks for naming that clearly. That is strong self-awareness.';
+    emotionFollowUp = isHinglish
+      ? pickNonRepeating(msg + '|emad', [
+          'Abhi body me sabse zyada tension kaha feel ho rahi hai: chest, shoulders, ya head?',
+          'Pehla tiny step: 30-second jaw aur shoulders relax karo. Kar paoge?',
+        ])
+      : pickNonRepeating(msg + '|emad', [
+          'Where do you feel this anger most right now: chest, shoulders, or head?',
+          'First tiny step: relax your jaw and shoulders for 30 seconds. Can you try that now?',
+        ]);
+  } else if (isEmotionLabel && ['sad', 'dukhi'].includes(msg)) {
+    core = isHinglish
+      ? 'Sad feel karna weakness nahi hai. Aapne honestly bola, that matters.'
+      : 'Feeling sad is not weakness. You named it honestly, and that matters.';
+    emotionFollowUp = isHinglish
+      ? pickNonRepeating(msg + '|esad', [
+          'Abhi ke liye ek gentle step choose karein: paani, face wash, ya 2-minute slow breathing?',
+          "Kya aap 1 supportive person ko simple text bhej sakte ho: 'thoda low feel kar raha/rahi hoon'?",
+        ])
+      : pickNonRepeating(msg + '|esad', [
+          'For this moment, pick one gentle step: water, a quick face wash, or 2 minutes of slow breathing?',
+          "Can you send one simple text to a supportive person: 'I am feeling low right now'?",
+        ]);
+  } else if (isEmotionLabel && ['happy', 'khush'].includes(msg)) {
+    core = isHinglish
+      ? 'Yeh sunke accha laga. Aapke mood me yeh lift important hai.'
+      : 'I am glad to hear that. This lift in your mood is important.';
+    emotionFollowUp = isHinglish
+      ? pickNonRepeating(msg + '|ehappy', [
+          'Aaj kya cheez helpful rahi? Usko repeatable routine bana sakte hain.',
+          'Is positive moment ko hold karne ke liye ek small win note kar lo.',
+        ])
+      : pickNonRepeating(msg + '|ehappy', [
+          'What helped you feel this way today? We can make that repeatable.',
+          'To hold this positive moment, note one small win from today.',
+        ]);
+  } else if (isEmotionLabel && ['anxious', 'stressed', 'worried'].includes(msg)) {
+    core = isHinglish
+      ? 'Samajh gaya, anxiety/tension body ko jaldi overload kar deti hai.'
+      : 'Got it, anxiety can overload your body very quickly.';
+    emotionFollowUp = isHinglish
+      ? pickNonRepeating(msg + '|eanx', [
+          'Chalo 4 rounds karein: inhale 4 sec, exhale 6 sec. Bas itna hi.',
+          'Abhi ek hi kaam choose karo jo 10 minute me complete ho sake.',
+        ])
+      : pickNonRepeating(msg + '|eanx', [
+          'Let us do 4 rounds now: inhale for 4 seconds, exhale for 6 seconds.',
+          'Pick just one task right now that can be finished in 10 minutes.',
+        ]);
   } else if (isShortNumber) {
     core = isHinglish
       ? 'Lagta hai aapne quick mood number share kiya. Accha kiya.'
@@ -320,13 +375,17 @@ function generateLocalReply(message, language, riskLevel, conversationHistory = 
         ]);
 
     const actionPrompt = isHinglish
-      ? 'Chalo isse thoda manageable banate hain: abhi ke liye ek emotion ka naam do, phir next 10-15 minutes ka ek tiny step choose karo.'
+      ? hasEmotionWord
+        ? 'Accha kiya jo aapne emotion identify kiya. Ab next 10-15 minutes ka ek tiny step choose karte hain.'
+        : 'Chalo isse thoda manageable banate hain: abhi ke liye ek emotion ka naam do, phir next 10-15 minutes ka ek tiny step choose karo.'
+      : hasEmotionWord
+      ? 'Thanks for naming that emotion. Now let us pick one tiny step for the next 10-15 minutes.'
       : 'Let us make this feel manageable: name one emotion first, then choose one tiny step for the next 10-15 minutes.';
 
     core = `${reflectivePrefix} ${actionPrompt}`;
   }
 
-  if (wordCount <= 3 && hasContext) {
+  if (wordCount <= 3 && hasContext && !isEmotionLabel) {
     if (theme === 'exam') {
       core = isHinglish
         ? 'Samajh gaya. Exam pressure ka load lagatar feel ho raha hoga.'
@@ -343,6 +402,7 @@ function generateLocalReply(message, language, riskLevel, conversationHistory = 
   }
 
   const askFollowUp = riskLevel === 'medium' || wordCount <= 5 || isShortNumber || isAffection || isBriefAck;
+  const hasEmotionFollowUp = Boolean(emotionFollowUp);
   const shouldAskFollowUp = isActionRequest ? false : askFollowUp;
   let followUp;
   if (riskLevel === 'medium') {
@@ -357,6 +417,8 @@ function generateLocalReply(message, language, riskLevel, conversationHistory = 
           'What is most intense at this moment: thoughts, physical tension, or social pressure?',
           'If you want, we can rate this moment from 1 to 10 and pick one clear next step.',
         ]);
+  } else if (hasEmotionFollowUp) {
+    followUp = emotionFollowUp;
   } else if (shouldAskFollowUp) {
     followUp = isHinglish
       ? pickNonRepeating(msg + '|l', [

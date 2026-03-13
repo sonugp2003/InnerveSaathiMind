@@ -347,12 +347,20 @@ User message:
         is_affection = bool(re.search(r"\b(i love you|love u|luv u|love you)\b", msg))
         is_short_number = bool(re.fullmatch(r"\d{1,2}", msg))
         is_brief_ack = bool(re.fullmatch(r"(ok|okay|hmm+|h|haan|han|yeah|yep|no|nah|k|theek|thik)", msg))
+        is_emotion_label = bool(
+            re.fullmatch(r"(mad|angry|sad|happy|anxious|stressed|worried|gussa|dukhi|khush)", msg)
+        )
+        has_emotion_word = bool(
+            re.search(r"\b(mad|angry|sad|happy|anxious|stressed|worried|gussa|dukhi|khush)\b", msg)
+        )
         is_action_request = bool(
             re.search(
                 r"\b(what small step|small step|next step|what should i do|what do i do now|abhi kya karu|ab kya karu|kya karu|kya karoon)\b",
                 msg,
             )
         )
+
+        emotion_follow_up: str | None = None
 
         def infer_theme(text: str) -> str:
             if not text:
@@ -403,6 +411,98 @@ User message:
                 "Aww, thank you. Main yahan genuinely support karne ke liye hoon."
                 if is_hinglish
                 else "Thank you, that is kind. I am here to support you genuinely."
+            )
+        elif is_emotion_label and msg in {"mad", "angry", "gussa"}:
+            core = (
+                "Thanks, aapne clearly emotion name kiya, that is strong self-awareness."
+                if is_hinglish
+                else "Thanks for naming that clearly. That is strong self-awareness."
+            )
+            emotion_follow_up = (
+                pick_non_repeating(
+                    msg + "|emad",
+                    [
+                        "Abhi body me sabse zyada tension kaha feel ho rahi hai: chest, shoulders, ya head?",
+                        "Pehla tiny step: 30-second jaw aur shoulders relax karo. Kar paoge?",
+                    ],
+                )
+                if is_hinglish
+                else pick_non_repeating(
+                    msg + "|emad",
+                    [
+                        "Where do you feel this anger most right now: chest, shoulders, or head?",
+                        "First tiny step: relax your jaw and shoulders for 30 seconds. Can you try that now?",
+                    ],
+                )
+            )
+        elif is_emotion_label and msg in {"sad", "dukhi"}:
+            core = (
+                "Sad feel karna weakness nahi hai. Aapne honestly bola, that matters."
+                if is_hinglish
+                else "Feeling sad is not weakness. You named it honestly, and that matters."
+            )
+            emotion_follow_up = (
+                pick_non_repeating(
+                    msg + "|esad",
+                    [
+                        "Abhi ke liye ek gentle step choose karein: paani, face wash, ya 2-minute slow breathing?",
+                        "Kya aap 1 supportive person ko simple text bhej sakte ho: 'thoda low feel kar raha/rahi hoon'?",
+                    ],
+                )
+                if is_hinglish
+                else pick_non_repeating(
+                    msg + "|esad",
+                    [
+                        "For this moment, pick one gentle step: water, a quick face wash, or 2 minutes of slow breathing?",
+                        "Can you send one simple text to a supportive person: 'I am feeling low right now'?",
+                    ],
+                )
+            )
+        elif is_emotion_label and msg in {"happy", "khush"}:
+            core = (
+                "Yeh sunke accha laga. Aapke mood me yeh lift important hai."
+                if is_hinglish
+                else "I am glad to hear that. This lift in your mood is important."
+            )
+            emotion_follow_up = (
+                pick_non_repeating(
+                    msg + "|ehappy",
+                    [
+                        "Aaj kya cheez helpful rahi? Usko repeatable routine bana sakte hain.",
+                        "Is positive moment ko hold karne ke liye ek small win note kar lo.",
+                    ],
+                )
+                if is_hinglish
+                else pick_non_repeating(
+                    msg + "|ehappy",
+                    [
+                        "What helped you feel this way today? We can make that repeatable.",
+                        "To hold this positive moment, note one small win from today.",
+                    ],
+                )
+            )
+        elif is_emotion_label and msg in {"anxious", "stressed", "worried"}:
+            core = (
+                "Samajh gaya, anxiety/tension body ko jaldi overload kar deti hai."
+                if is_hinglish
+                else "Got it, anxiety can overload your body very quickly."
+            )
+            emotion_follow_up = (
+                pick_non_repeating(
+                    msg + "|eanx",
+                    [
+                        "Chalo 4 rounds karein: inhale 4 sec, exhale 6 sec. Bas itna hi.",
+                        "Abhi ek hi kaam choose karo jo 10 minute me complete ho sake.",
+                    ],
+                )
+                if is_hinglish
+                else pick_non_repeating(
+                    msg + "|eanx",
+                    [
+                        "Let us do 4 rounds now: inhale for 4 seconds, exhale for 6 seconds.",
+                        "Pick just one task right now that can be finished in 10 minutes.",
+                    ],
+                )
             )
         elif is_short_number:
             core = (
@@ -483,7 +583,11 @@ User message:
                 )
             )
             action_prompt = (
-                "Chalo isse thoda manageable banate hain: abhi ke liye ek emotion ka naam do, "
+                "Accha kiya jo aapne emotion identify kiya. Ab next 10-15 minutes ka ek tiny step choose karte hain."
+                if is_hinglish and has_emotion_word
+                else "Thanks for naming that emotion. Now let us pick one tiny step for the next 10-15 minutes."
+                if has_emotion_word
+                else "Chalo isse thoda manageable banate hain: abhi ke liye ek emotion ka naam do, "
                 "phir next 10-15 minutes ka ek tiny step choose karo."
                 if is_hinglish
                 else "Let us make this feel manageable: name one emotion first, then choose one tiny "
@@ -491,7 +595,7 @@ User message:
             )
             core = f"{reflective_prefix} {action_prompt}"
 
-        if word_count <= 3 and has_context:
+        if word_count <= 3 and has_context and not is_emotion_label:
             if theme == "exam":
                 core = (
                     "Samajh gaya. Exam pressure ka load lagatar feel ho raha hoga."
@@ -520,6 +624,8 @@ User message:
         )
         if is_action_request:
             ask_follow_up = False
+        if emotion_follow_up is not None:
+            ask_follow_up = False
 
         if risk_level == "medium":
             follow_up = (
@@ -541,6 +647,8 @@ User message:
                     ],
                 )
             )
+        elif emotion_follow_up is not None:
+            follow_up = emotion_follow_up
         elif ask_follow_up:
             follow_up = (
                 pick_non_repeating(
