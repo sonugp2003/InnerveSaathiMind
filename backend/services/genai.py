@@ -20,6 +20,8 @@ class WellnessAssistant:
         self.settings = settings
         self.vertex_enabled = False
         self.gemini_api_enabled = False
+        self.gemini_agent_name = settings.gemini_agent_name or "SaathiMind-Gemini-Agent"
+        self.vertex_agent_name = "SaathiMind-Vertex-Agent"
         self.model: Any | None = None
         self.error: str | None = None
 
@@ -47,6 +49,16 @@ class WellnessAssistant:
             return "gemini-api"
         return "local"
 
+    @property
+    def active_agent(self) -> str:
+        if self.gemini_api_enabled and self.settings.prefer_gemini_agent:
+            return self.gemini_agent_name
+        if self.vertex_enabled:
+            return self.vertex_agent_name
+        if self.gemini_api_enabled:
+            return self.gemini_agent_name
+        return "SaathiMind-Local-Fallback"
+
     def generate_reply(
         self,
         message: str,
@@ -62,6 +74,12 @@ class WellnessAssistant:
                 "If you feel in immediate danger, call emergency services and stay with a trusted person."
             )
 
+        if self.gemini_api_enabled and self.settings.prefer_gemini_agent:
+            try:
+                return self._generate_gemini_api_reply(message, history, language)
+            except Exception as exc:
+                self.error = f"Gemini API runtime failed: {exc}"
+
         if self.vertex_enabled:
             try:
                 return self._generate_vertex_reply(message, history, language)
@@ -75,6 +93,47 @@ class WellnessAssistant:
                 self.error = f"Gemini API runtime failed: {exc}"
 
         return self._generate_local_reply(message, history, language, risk_level)
+
+    def _build_agent_prompt(
+        self,
+        *,
+        message: str,
+        history: list[dict[str, str]],
+        language: str,
+        agent_name: str,
+    ) -> str:
+        style_hint = (
+            "Reply in natural Roman Hinglish (casual but respectful), like a caring friend in India."
+            if language == "hinglish"
+            else "Use warm natural English that sounds like a caring human."
+        )
+
+        history_block = "\n".join([f"{item['role']}: {item['content']}" for item in history])
+
+        return f"""
+You are {agent_name}, the conversational agent inside SaathiMind, a confidential youth wellness companion for India.
+Guidelines:
+- Be empathetic, non-judgmental, and culturally sensitive.
+- Do not diagnose or prescribe medication.
+- Normalize help-seeking and reduce stigma.
+- Sound human, not scripted.
+- Use 2-5 natural sentences.
+- Offer 1-2 practical next steps (more only when necessary).
+- Avoid repeating the user's exact words unless useful.
+- Avoid repetitive canned openers like "I hear you" on every turn.
+- Ask a follow-up question only when it genuinely helps.
+- Keep continuity with the latest user context.
+- Keep tone warm and simple, like a real person texting support.
+- Never end mid-sentence; always complete the final thought naturally.
+- Keep response under 170 words.
+- {style_hint}
+
+Conversation so far:
+{history_block}
+
+User message:
+{message}
+""".strip()
 
     def _clean_model_text(self, text: str) -> str:
         # Normalize spacing so model outputs render like a natural chat message.
@@ -177,38 +236,12 @@ class WellnessAssistant:
     ) -> str:
         assert self.model is not None
 
-        style_hint = (
-            "Reply in natural Roman Hinglish (casual but respectful), like a caring friend in India."
-            if language == "hinglish"
-            else "Use warm natural English that sounds like a caring human."
+        prompt = self._build_agent_prompt(
+            message=message,
+            history=history,
+            language=language,
+            agent_name=self.vertex_agent_name,
         )
-
-        history_block = "\n".join([f"{item['role']}: {item['content']}" for item in history])
-
-        prompt = f"""
-You are SaathiMind, a confidential youth wellness companion for India.
-Guidelines:
-- Be empathetic, non-judgmental, and culturally sensitive.
-- Do not diagnose or prescribe medication.
-- Normalize help-seeking and reduce stigma.
-- Sound human, not scripted.
-- Use 2-5 natural sentences.
-- Offer 1-2 practical next steps (more only when necessary).
-- Avoid repeating the user's exact words unless useful.
-- Avoid repetitive canned openers like "I hear you" on every turn.
-- Ask a follow-up question only when it genuinely helps.
-- Keep continuity with the latest user context.
-- Keep tone warm and simple, like a real person texting support.
-- Never end mid-sentence; always complete the final thought naturally.
-- Keep response under 170 words.
-- {style_hint}
-
-Conversation so far:
-{history_block}
-
-User message:
-{message}
-""".strip()
 
         response = self.model.generate_content(
             prompt,
@@ -227,38 +260,12 @@ User message:
         history: list[dict[str, str]],
         language: str,
     ) -> str:
-        style_hint = (
-            "Reply in natural Roman Hinglish (casual but respectful), like a caring friend in India."
-            if language == "hinglish"
-            else "Use warm natural English that sounds like a caring human."
+        prompt = self._build_agent_prompt(
+            message=message,
+            history=history,
+            language=language,
+            agent_name=self.gemini_agent_name,
         )
-
-        history_block = "\n".join([f"{item['role']}: {item['content']}" for item in history])
-
-        prompt = f"""
-You are SaathiMind, a confidential youth wellness companion for India.
-Guidelines:
-- Be empathetic, non-judgmental, and culturally sensitive.
-- Do not diagnose or prescribe medication.
-- Normalize help-seeking and reduce stigma.
-- Sound human, not scripted.
-- Use 2-5 natural sentences.
-- Offer 1-2 practical next steps (more only when necessary).
-- Avoid repeating the user's exact words unless useful.
-- Avoid repetitive canned openers like "I hear you" on every turn.
-- Ask a follow-up question only when it genuinely helps.
-- Keep continuity with the latest user context.
-- Keep tone warm and simple, like a real person texting support.
-- Never end mid-sentence; always complete the final thought naturally.
-- Keep response under 170 words.
-- {style_hint}
-
-Conversation so far:
-{history_block}
-
-User message:
-{message}
-""".strip()
 
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.settings.gemini_model}:generateContent"
         payload = {

@@ -73,6 +73,8 @@ def health() -> dict[str, object]:
     return {
         "status": "ok",
         "engine": assistant.engine_name,
+        "active_agent": assistant.active_agent,
+        "prefer_gemini_agent": settings.prefer_gemini_agent,
         "vertex_enabled": assistant.vertex_enabled,
         "gemini_enabled": assistant.gemini_api_enabled,
         "gemini_model": settings.gemini_model,
