@@ -96,11 +96,11 @@ Optional environment variables (only if you want Vertex AI mode):
 - `USE_VERTEX_AI=true`
 - `GOOGLE_CLOUD_PROJECT=...`
 - `GOOGLE_CLOUD_LOCATION=asia-south1`
-- `VERTEX_MODEL=gemini-1.5-flash`
+- `VERTEX_MODEL=gemini-2.5-flash`
 
 Optional environment variables (if you want Gemini API key mode):
 - `GEMINI_API_KEY=...`
-- `GEMINI_MODEL=gemini-1.5-flash`
+- `GEMINI_MODEL=gemini-2.5-flash`
 
 If both are configured, Vertex mode is preferred. If Vertex is unavailable, Gemini API key mode is used.
 
@@ -127,7 +127,7 @@ If you want Gemini responses without Vertex setup:
 1. Open `.env` (or your Vercel environment settings).
 2. Set:
    - `GEMINI_API_KEY=your-key`
-   - `GEMINI_MODEL=gemini-1.5-flash`
+   - `GEMINI_MODEL=gemini-2.5-flash`
 3. Keep `USE_VERTEX_AI=false` unless you also want Vertex.
 
 The backend will call Gemini through the official Generative Language API and use local fallback if the key is missing or fails.

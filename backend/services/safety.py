@@ -4,6 +4,11 @@ import re
 
 HIGH_RISK_KEYWORDS = {
     "suicide",
+    "sucide",
+    "suside",
+    "suiside",
+    "suicde",
+    "suicidal",
     "kill myself",
     "end my life",
     "ending everything",
@@ -48,10 +53,24 @@ def _find_matches(text: str, keywords: set[str]) -> list[str]:
     return sorted([keyword for keyword in keywords if keyword in text])
 
 
+def _contains_high_risk_fuzzy(text: str) -> bool:
+    # Catch common misspellings/variants of suicide intent phrases.
+    return bool(
+        re.search(
+            r"\b(suicide|sucide|suside|suiside|suicde|suicidal|kill myself|end my life|harm myself|self harm)\b",
+            text,
+        )
+    )
+
+
 def assess_text(text: str) -> dict[str, object]:
     normalized = _normalize(text)
 
     high_matches = _find_matches(normalized, HIGH_RISK_KEYWORDS)
+    if _contains_high_risk_fuzzy(normalized):
+        if "suicide" not in high_matches:
+            high_matches.append("suicide")
+        high_matches = sorted(set(high_matches))
     medium_matches = _find_matches(normalized, MEDIUM_RISK_KEYWORDS)
     stigma_matches = _find_matches(normalized, STIGMA_KEYWORDS)
 

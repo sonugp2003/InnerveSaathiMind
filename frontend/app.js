@@ -47,6 +47,11 @@ const LOCAL_COUNSELLORS = [
 
 const HIGH_RISK_KEYWORDS = [
   'suicide',
+  'sucide',
+  'suside',
+  'suiside',
+  'suicde',
+  'suicidal',
   'kill myself',
   'end my life',
   'ending everything',
@@ -107,6 +112,13 @@ function findMatches(normalizedText, keywords) {
   return keywords.filter((keyword) => normalizedText.includes(keyword)).sort();
 }
 
+function containsHighRiskFuzzy(normalizedText) {
+  // Catch common misspellings/variants of suicide intent phrases.
+  return /\b(suicide|sucide|suside|suiside|suicde|suicidal|kill myself|end my life|harm myself|self harm)\b/.test(
+    normalizedText
+  );
+}
+
 function buildGuidance(riskLevel) {
   if (riskLevel === 'high') {
     return (
@@ -126,6 +138,9 @@ function buildGuidance(riskLevel) {
 function assessText(text) {
   const normalized = normalizeText(text);
   const highMatches = findMatches(normalized, HIGH_RISK_KEYWORDS);
+  if (containsHighRiskFuzzy(normalized) && !highMatches.includes('suicide')) {
+    highMatches.push('suicide');
+  }
   const mediumMatches = findMatches(normalized, MEDIUM_RISK_KEYWORDS);
   const stigmaMatches = findMatches(normalized, STIGMA_KEYWORDS);
 
@@ -391,7 +406,7 @@ async function healthRequest() {
     engine: 'local',
     vertex_enabled: false,
     gemini_enabled: false,
-    gemini_model: 'gemini-1.5-flash',
+    gemini_model: 'gemini-2.5-flash',
     vertex_model: 'local-browser-fallback',
     fallback_reason: 'Running without backend API.',
   };

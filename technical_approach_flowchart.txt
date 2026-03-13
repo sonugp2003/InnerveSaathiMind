@@ -1,0 +1,96 @@
+SAATHIMIND - TECHNICAL APPROACH FLOWCHART
+=========================================
+
+[START]
+   |
+   v
+[User opens frontend UI]
+   |
+   v
+[User action]
+   |-- Chat message
+   |-- Daily check-in submit
+   |-- Resource search
+   |-- Counsellor booking
+   |
+   v
+[Frontend routing decision]
+   |
+   +--> Is API base available / backend reachable?
+          |
+          +--> YES ----------------------------------------------+
+          |                                                     |
+          v                                                     |
+   [Call FastAPI endpoint]                                      |
+   /api/chat                                                    |
+   /api/check-in                                                |
+   /api/resources                                               |
+   /api/counsellor-booking                                      |
+          |                                                     |
+          v                                                     |
+   [Backend safety screening]                                   |
+   - Detect high/medium/low risk                                |
+   - Extract triggers                                            |
+          |                                                     |
+          +--> High risk? --- YES --> [Immediate escalation]    |
+          |                         - Helpline guidance          |
+          |                         - escalate = true            |
+          |                         - Priority-safe response     |
+          |                                                     |
+          +--> NO ------------------------------------------+   |
+          |                                                |   |
+          v                                                |   |
+   [AI engine selection]                                   |   |
+   1) Vertex AI (if USE_VERTEX_AI=true and configured)     |   |
+   2) Gemini API (if GEMINI_API_KEY present)               |   |
+   3) Local fallback (rule-based empathetic response)      |   |
+          |                                                |   |
+          v                                                |   |
+   [Generate domain response]                              |   |
+   - Empathetic chat (EN/Hinglish)                         |   |
+   - Actionable micro-steps                                |   |
+   - Safety flags + suggested actions                      |   |
+          |                                                |   |
+          v                                                |   |
+   [Return JSON response to frontend] ---------------------+   |
+          |                                                    |
+          v                                                    |
+   [Render UI output]                                         |
+   - Chat bubble                                               |
+   - Emergency banner (if escalate=true)                      |
+   - Plan/resources/booking confirmation                       |
+          |                                                    |
+          v                                                    |
+        [END]                                                  |
+                                                               |
+          +--> NO ---------------------------------------------+
+                 |
+                 v
+          [Frontend local fallback mode]
+          - Local safety detection
+          - Local empathetic response generation
+          - Local resource filtering
+          - Local booking simulation
+                 |
+                 v
+          [Render fallback output]
+                 |
+                 v
+               [END]
+
+
+TECHNICAL COMPONENTS (REFERENCE)
+--------------------------------
+Frontend:
+- index.html, app.js, styles.css
+- Handles input capture, API call, and local fallback behavior
+
+Backend:
+- FastAPI app (backend/main.py)
+- Safety service (backend/services/safety.py)
+- GenAI service (backend/services/genai.py)
+- Resource service (backend/services/resources.py)
+
+Config & deployment:
+- Environment config via backend/config.py and .env
+- Optional cloud setup via render.yaml / vercel.json

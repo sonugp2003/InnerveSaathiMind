@@ -64,14 +64,14 @@ class WellnessAssistant:
         if self.vertex_enabled:
             try:
                 return self._generate_vertex_reply(message, history, language)
-            except Exception:
-                pass
+            except Exception as exc:
+                self.error = f"Vertex runtime failed: {exc}"
 
         if self.gemini_api_enabled:
             try:
                 return self._generate_gemini_api_reply(message, history, language)
-            except Exception:
-                pass
+            except Exception as exc:
+                self.error = f"Gemini API runtime failed: {exc}"
 
         return self._generate_local_reply(message, language, risk_level)
 
@@ -217,7 +217,9 @@ User message:
             json=payload,
             timeout=20.0,
         )
-        response.raise_for_status()
+        if response.status_code >= 400:
+            snippet = response.text[:400]
+            raise RuntimeError(f"Gemini API HTTP {response.status_code}: {snippet}")
         body = response.json()
 
         candidates = body.get("candidates", [])
