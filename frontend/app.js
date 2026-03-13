@@ -222,9 +222,23 @@ function generateLocalReply(message, language, riskLevel, conversationHistory = 
   const lastUser = [...conversationHistory]
     .reverse()
     .find((item) => item && item.role === 'user' && String(item.content || '').trim());
+  const lastAssistant = [...conversationHistory]
+    .reverse()
+    .find((item) => item && item.role === 'assistant' && String(item.content || '').trim());
   const hasContext = Boolean(lastUser);
   const theme = inferTheme(lastUser?.content || '');
+  const lastAssistantText = normalizeText(lastAssistant?.content || '');
   let core;
+
+  function pickNonRepeating(seedText, options) {
+    if (!options.length) return '';
+    let candidates = options;
+    if (lastAssistantText) {
+      const filtered = options.filter((option) => !lastAssistantText.includes(normalizeText(option)));
+      if (filtered.length) candidates = filtered;
+    }
+    return pickVariant(seedText, candidates);
+  }
 
   const isGreeting = /\b(hi|hii|hello|hey|namaste)\b/.test(msg) && msg.split(' ').length <= 5;
   const isIdentityQuery =
@@ -235,6 +249,10 @@ function generateLocalReply(message, language, riskLevel, conversationHistory = 
   const isAffection = /\b(i love you|love u|luv u|love you)\b/.test(msg);
   const isShortNumber = /^\d{1,2}$/.test(msg);
   const isBriefAck = /^(ok|okay|hmm+|h|haan|han|yeah|yep|no|nah|k|theek|thik)$/.test(msg);
+  const isActionRequest =
+    /\b(what small step|small step|next step|what should i do|what do i do now|abhi kya karu|ab kya karu|kya karu|kya karoon)\b/.test(
+      msg
+    );
 
   if (isGreeting) {
     core = isHinglish
@@ -284,6 +302,10 @@ function generateLocalReply(message, language, riskLevel, conversationHistory = 
     core = isHinglish
       ? 'Aap mentally aur physically dono drained lag rahe ho. Aaj raat ek gentle reset try karo: sleep se 30 min pehle phone side me rakho, aur worries ka quick brain-dump note bana do.'
       : 'You sound mentally and physically drained. Try a gentle reset tonight: keep your phone away 30 minutes before sleep, and do a quick brain-dump note to park worries.';
+  } else if (isActionRequest) {
+    core = isHinglish
+      ? "Abhi ke liye ek simple 3-step karo: 1) 4 slow breaths, 2) thoda paani piyo, 3) ek trusted person ko short message bhejo: 'thoda low feel kar raha/rahi hoon'."
+      : "Try this simple 3-step right now: 1) take 4 slow breaths, 2) drink some water, 3) text one trusted person: 'I am feeling low and could use a quick check-in'.";
   } else {
     const reflectivePrefix = isHinglish
       ? pickVariant(msg, [
@@ -321,36 +343,43 @@ function generateLocalReply(message, language, riskLevel, conversationHistory = 
   }
 
   const askFollowUp = riskLevel === 'medium' || wordCount <= 5 || isShortNumber || isAffection || isBriefAck;
+  const shouldAskFollowUp = isActionRequest ? false : askFollowUp;
   let followUp;
   if (riskLevel === 'medium') {
     followUp = isHinglish
-      ? pickVariant(msg + '|m', [
+      ? pickNonRepeating(msg + '|m', [
           'Abhi sabse tough kya lag raha hai: thoughts, body stress, ya people pressure?',
           'Is waqt sabse heavy part kya hai: dimag ki racing, body tension, ya social pressure?',
+          'Agar chaaho, hum is moment ko 1 se 10 scale pe rate karke next step choose kar sakte hain.',
         ])
-      : pickVariant(msg + '|m', [
+      : pickNonRepeating(msg + '|m', [
           'What feels hardest right now: racing thoughts, body stress, or people pressure?',
           'What is most intense at this moment: thoughts, physical tension, or social pressure?',
+          'If you want, we can rate this moment from 1 to 10 and pick one clear next step.',
         ]);
-  } else if (askFollowUp) {
+  } else if (shouldAskFollowUp) {
     followUp = isHinglish
-      ? pickVariant(msg + '|l', [
+      ? pickNonRepeating(msg + '|l', [
           'Ab next step ke liye kya easy lagega: 2-minute grounding ya chhota action plan?',
           'Aap chaaho to hum abhi short grounding karein, ya seedha practical plan banayein.',
+          'Aap bol do, main abhi ek tiny plan bana deta hoon jo 10 minute me ho jaye.',
         ])
-      : pickVariant(msg + '|l', [
+      : pickNonRepeating(msg + '|l', [
           'What would feel easier right now: a 2-minute grounding or a short action plan?',
           'If you want, we can do a short grounding first or go straight to a practical plan.',
+          'Tell me and I can create a tiny 10-minute plan for right now.',
         ]);
   } else {
     followUp = isHinglish
-      ? pickVariant(msg + '|s', [
+      ? pickNonRepeating(msg + '|s', [
           'Main yahin hoon, step by step chalte hain.',
           'Hum isse dheere dheere handle kar lenge, aap akela nahi ho.',
+          'Jaldi nahi hai, hum calmly isko ek ek step me handle karte hain.',
         ])
-      : pickVariant(msg + '|s', [
+      : pickNonRepeating(msg + '|s', [
           'I am here with you, and we can take this step by step.',
           'You are not alone in this. We can handle it one step at a time.',
+          'There is no rush. We can handle this calmly, one small step at a time.',
         ]);
   }
 

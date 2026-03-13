@@ -308,6 +308,15 @@ User message:
                 last_user_message = re.sub(r"\s+", " ", text.lower()).strip()
                 break
 
+        last_assistant_message = ""
+        for item in reversed(history):
+            if str(item.get("role", "")) != "assistant":
+                continue
+            text = str(item.get("content", "")).strip()
+            if text:
+                last_assistant_message = re.sub(r"\s+", " ", text.lower()).strip()
+                break
+
         def pick_variant(seed_text: str, options: list[str]) -> str:
             if not options:
                 return ""
@@ -316,6 +325,16 @@ User message:
             for index, ch in enumerate(seed):
                 hash_value = (hash_value + ord(ch) * (index + 1)) % 2147483647
             return options[hash_value % len(options)]
+
+        def pick_non_repeating(seed_text: str, options: list[str]) -> str:
+            if not options:
+                return ""
+            candidates = options
+            if last_assistant_message:
+                filtered = [option for option in options if option.lower() not in last_assistant_message]
+                if filtered:
+                    candidates = filtered
+            return pick_variant(seed_text, candidates)
 
         is_greeting = bool(re.search(r"\b(hi|hii|hello|hey|namaste)\b", msg)) and len(msg.split()) <= 5
         is_identity_query = bool(
@@ -328,6 +347,12 @@ User message:
         is_affection = bool(re.search(r"\b(i love you|love u|luv u|love you)\b", msg))
         is_short_number = bool(re.fullmatch(r"\d{1,2}", msg))
         is_brief_ack = bool(re.fullmatch(r"(ok|okay|hmm+|h|haan|han|yeah|yep|no|nah|k|theek|thik)", msg))
+        is_action_request = bool(
+            re.search(
+                r"\b(what small step|small step|next step|what should i do|what do i do now|abhi kya karu|ab kya karu|kya karu|kya karoon)\b",
+                msg,
+            )
+        )
 
         def infer_theme(text: str) -> str:
             if not text:
@@ -429,6 +454,14 @@ User message:
                 else "You sound mentally and physically drained. Try a gentle reset tonight: keep your phone away "
                 "30 minutes before sleep, and do a quick brain-dump note to park worries."
             )
+        elif is_action_request:
+            core = (
+                "Abhi ke liye ek simple 3-step karo: 1) 4 slow breaths, 2) thoda paani piyo, "
+                "3) ek trusted person ko short message bhejo: 'thoda low feel kar raha/rahi hoon'."
+                if is_hinglish
+                else "Try this simple 3-step right now: 1) take 4 slow breaths, 2) drink some water, "
+                "3) text one trusted person: 'I am feeling low and could use a quick check-in'."
+            )
         else:
             reflective_prefix = (
                 pick_variant(
@@ -485,57 +518,66 @@ User message:
             or is_affection
             or is_brief_ack
         )
+        if is_action_request:
+            ask_follow_up = False
+
         if risk_level == "medium":
             follow_up = (
-                pick_variant(
+                pick_non_repeating(
                     msg + "|m",
                     [
                         "Abhi sabse tough kya lag raha hai: thoughts, body stress, ya people pressure?",
                         "Is waqt sabse heavy part kya hai: dimag ki racing, body tension, ya social pressure?",
+                        "Agar chaaho, hum is moment ko 1 se 10 scale pe rate karke next step choose kar sakte hain.",
                     ],
                 )
                 if is_hinglish
-                else pick_variant(
+                else pick_non_repeating(
                     msg + "|m",
                     [
                         "What feels hardest right now: racing thoughts, body stress, or people pressure?",
                         "What is most intense at this moment: thoughts, physical tension, or social pressure?",
+                        "If you want, we can rate this moment from 1 to 10 and pick one clear next step.",
                     ],
                 )
             )
         elif ask_follow_up:
             follow_up = (
-                pick_variant(
+                pick_non_repeating(
                     msg + "|l",
                     [
                         "Ab next step ke liye kya easy lagega: 2-minute grounding ya chhota action plan?",
                         "Aap chaaho to hum abhi short grounding karein, ya seedha practical plan banayein.",
+                        "Aap bol do, main abhi ek tiny plan bana deta hoon jo 10 minute me ho jaye.",
                     ],
                 )
                 if is_hinglish
-                else pick_variant(
+                else pick_non_repeating(
                     msg + "|l",
                     [
                         "What would feel easier right now: a 2-minute grounding or a short action plan?",
                         "If you want, we can do a short grounding first or go straight to a practical plan.",
+                        "Tell me and I can create a tiny 10-minute plan for right now.",
                     ],
                 )
             )
         else:
             follow_up = (
-                pick_variant(
+                pick_non_repeating(
                     msg + "|l",
                     [
                         "Main yahin hoon, step by step chalte hain.",
                         "Hum isse dheere dheere handle kar lenge, aap akela nahi ho.",
+                        "Jaldi nahi hai, hum calmly isko ek ek step me handle karte hain.",
                     ],
                 )
                 if is_hinglish
-                else pick_variant(
+                else pick_non_repeating(
                     msg + "|l",
                     [
                         "I am here with you, and we can take this step by step.",
                         "You are not alone in this. We can handle it one step at a time.",
+                        "There is no rush. We can handle this calmly, one small step at a time.",
                     ],
                 )
             )
