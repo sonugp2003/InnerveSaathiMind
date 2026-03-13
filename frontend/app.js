@@ -183,6 +183,16 @@ function buildSuggestedActions(riskLevel) {
   ];
 }
 
+function pickVariant(seedText, options) {
+  if (!options.length) return '';
+  const seed = String(seedText || 'seed');
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash + seed.charCodeAt(i) * (i + 1)) % 2147483647;
+  }
+  return options[hash % options.length];
+}
+
 function generateLocalReply(message, language, riskLevel) {
   if (riskLevel === 'high') {
     return (
@@ -192,10 +202,26 @@ function generateLocalReply(message, language, riskLevel) {
     );
   }
 
-  const msg = String(message).toLowerCase();
+  const msg = normalizeText(message);
+  const compactMessage = String(message).replace(/\s+/g, ' ').trim().slice(0, 110);
   let core;
 
-  if (msg.includes('exam') || msg.includes('study') || msg.includes('marks')) {
+  if (/\b(hi|hii|hello|hey|namaste)\b/.test(msg) && msg.split(' ').length <= 5) {
+    core =
+      language === 'hinglish'
+        ? 'Hi, main SaathiMind hoon. Aap safe space mein ho. Aaj aapko sabse zyada kis baat ka pressure feel ho raha hai?'
+        : 'Hi, I am SaathiMind. You are in a safe and judgment-free space. What is feeling heaviest for you right now?';
+  } else if (msg.includes('who are you') || msg.includes('what are you') || msg.includes('your name')) {
+    core =
+      language === 'hinglish'
+        ? 'Main SaathiMind hoon, ek empathetic wellness companion. Main diagnose nahi karta, par aapko sun sakta hoon aur practical next steps de sakta hoon.'
+        : 'I am SaathiMind, an empathetic wellness companion. I do not diagnose, but I can listen and help you with practical next steps.';
+  } else if (msg.includes('thank you') || msg.includes('thanks') || msg.includes('shukriya')) {
+    core =
+      language === 'hinglish'
+        ? 'Aapne share kiya, woh bahut important hai. Hum yahin se aaram se agla chhota step choose karte hain.'
+        : 'You opening up is important. Let us choose one small and manageable next step from here.';
+  } else if (msg.includes('exam') || msg.includes('study') || msg.includes('marks')) {
     core =
       'It sounds like exam pressure is draining you, and that is very common among students. ' +
       'Try one 25-minute focused study sprint, then a 5-minute break. ' +
@@ -216,9 +242,23 @@ function generateLocalReply(message, language, riskLevel) {
       'For tonight, aim for a digital sunset: stop scrolling 30 minutes before sleep. ' +
       'Do a brief brain-dump list so worries are parked outside your head.';
   } else {
+    const reflectivePrefix =
+      language === 'hinglish'
+        ? pickVariant(msg, [
+            'Main aapki baat dhyan se sun raha hoon.',
+            'Aap jo keh rahe ho, woh important hai.',
+            'Yeh jo aap feel kar rahe ho, usko lightly nahi lena chahiye.',
+          ])
+        : pickVariant(msg, [
+            'I am listening carefully to you.',
+            'What you are sharing matters.',
+            'Your feelings are valid and important here.',
+          ]);
+
     core =
-      'Thank you for opening up. What you are feeling matters. ' +
-      'Let us take this one step at a time: name the top emotion, rate it 0-10, and choose one tiny action for the next 15 minutes.';
+      reflectivePrefix +
+      ` You said: "${compactMessage}". ` +
+      'Let us make this manageable with one emotion label, one 0-10 rating, and one tiny action for the next 15 minutes.';
   }
 
   const followUp =

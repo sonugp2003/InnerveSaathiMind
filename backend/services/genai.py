@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import httpx
@@ -231,9 +232,42 @@ User message:
         return text if text else self._generate_local_reply(message, language, "low")
 
     def _generate_local_reply(self, message: str, language: str, risk_level: str) -> str:
-        msg = message.lower()
+        msg = re.sub(r"\s+", " ", message.lower()).strip()
+        compact_message = re.sub(r"\s+", " ", message).strip()[:110]
 
-        if "exam" in msg or "study" in msg or "marks" in msg:
+        def pick_variant(seed_text: str, options: list[str]) -> str:
+            if not options:
+                return ""
+            seed = seed_text or "seed"
+            hash_value = 0
+            for index, ch in enumerate(seed):
+                hash_value = (hash_value + ord(ch) * (index + 1)) % 2147483647
+            return options[hash_value % len(options)]
+
+        if re.search(r"\b(hi|hii|hello|hey|namaste)\b", msg) and len(msg.split()) <= 5:
+            core = (
+                "Hi, main SaathiMind hoon. Aap safe space mein ho. "
+                "Aaj aapko sabse zyada kis baat ka pressure feel ho raha hai?"
+                if language == "hinglish"
+                else "Hi, I am SaathiMind. You are in a safe and judgment-free space. "
+                "What is feeling heaviest for you right now?"
+            )
+        elif "who are you" in msg or "what are you" in msg or "your name" in msg:
+            core = (
+                "Main SaathiMind hoon, ek empathetic wellness companion. Main diagnose nahi karta, "
+                "par aapko sun sakta hoon aur practical next steps de sakta hoon."
+                if language == "hinglish"
+                else "I am SaathiMind, an empathetic wellness companion. I do not diagnose, "
+                "but I can listen and help you with practical next steps."
+            )
+        elif "thank you" in msg or "thanks" in msg or "shukriya" in msg:
+            core = (
+                "Aapne share kiya, woh bahut important hai. Hum yahin se aaram se agla chhota step choose karte hain."
+                if language == "hinglish"
+                else "You opening up is important. Let us choose one small and manageable next step from here."
+            )
+
+        elif "exam" in msg or "study" in msg or "marks" in msg:
             core = (
                 "It sounds like exam pressure is draining you, and that is very common among students. "
                 "Try one 25-minute focused study sprint, then a 5-minute break. "
@@ -258,9 +292,29 @@ User message:
                 "Do a brief brain-dump list so worries are parked outside your head."
             )
         else:
+            reflective_prefix = (
+                pick_variant(
+                    msg,
+                    [
+                        "Main aapki baat dhyan se sun raha hoon.",
+                        "Aap jo keh rahe ho, woh important hai.",
+                        "Yeh jo aap feel kar rahe ho, usko lightly nahi lena chahiye.",
+                    ],
+                )
+                if language == "hinglish"
+                else pick_variant(
+                    msg,
+                    [
+                        "I am listening carefully to you.",
+                        "What you are sharing matters.",
+                        "Your feelings are valid and important here.",
+                    ],
+                )
+            )
             core = (
-                "Thank you for opening up. What you are feeling matters. "
-                "Let us take this one step at a time: name the top emotion, rate it 0-10, and choose one tiny action for the next 15 minutes."
+                f"{reflective_prefix} You said: \"{compact_message}\". "
+                "Let us make this manageable with one emotion label, one 0-10 rating, "
+                "and one tiny action for the next 15 minutes."
             )
 
         follow_up = (
