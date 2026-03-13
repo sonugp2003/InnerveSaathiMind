@@ -31,6 +31,7 @@ jobs:
           cp frontend/styles.css site/static/styles.css
           cp frontend/app.js site/static/app.js
           cp frontend/env.js site/static/env.js
+          cp frontend/resources_india.json site/static/resources_india.json
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

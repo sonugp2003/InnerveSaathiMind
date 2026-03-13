@@ -46,14 +46,18 @@ This repo now includes a workflow at `.github/workflows/deploy-pages.yml` that p
    - `https://sonugp2003.github.io/InnerveSaathiMind/`
 
 Important:
-- GitHub Pages hosts only static files.
-- Chat, check-in, resources, and health features need a running backend API.
+- GitHub Pages hosts static files, and this frontend includes a browser fallback engine.
+- Chat, safety prompts, check-in planning, and resources search work directly in-browser on your Pages URL.
+- Deploying the backend is optional and gives API-backed behavior (and optional Vertex AI).
 
 To connect the hosted frontend to a deployed backend:
 1. Deploy this FastAPI backend to a service like Render, Railway, or Cloud Run.
 2. Edit `frontend/env.js` and set:
    - `window.SAATHIMIND_API_BASE = 'https://your-backend-url';`
 3. Commit and push again so GitHub Pages picks up the change.
+
+If `frontend/env.js` keeps `window.SAATHIMIND_API_BASE = '';`, the app runs in browser-only mode and still works on:
+- `https://sonugp2003.github.io/InnerveSaathiMind/`
 
 ## Deploy Backend on Render (One-Click)
 
