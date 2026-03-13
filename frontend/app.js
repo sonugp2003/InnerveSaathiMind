@@ -203,72 +203,93 @@ function generateLocalReply(message, language, riskLevel) {
   }
 
   const msg = normalizeText(message);
-  const compactMessage = String(message).replace(/\s+/g, ' ').trim().slice(0, 110);
+  const isHinglish = language === 'hinglish';
+  const compactMessage = String(message).replace(/\s+/g, ' ').trim().slice(0, 110).replaceAll('"', "'");
   let core;
 
-  if (/\b(hi|hii|hello|hey|namaste)\b/.test(msg) && msg.split(' ').length <= 5) {
-    core =
-      language === 'hinglish'
-        ? 'Hi, main SaathiMind hoon. Aap safe space mein ho. Aaj aapko sabse zyada kis baat ka pressure feel ho raha hai?'
-        : 'Hi, I am SaathiMind. You are in a safe and judgment-free space. What is feeling heaviest for you right now?';
-  } else if (msg.includes('who are you') || msg.includes('what are you') || msg.includes('your name')) {
-    core =
-      language === 'hinglish'
-        ? 'Main SaathiMind hoon, ek empathetic wellness companion. Main diagnose nahi karta, par aapko sun sakta hoon aur practical next steps de sakta hoon.'
-        : 'I am SaathiMind, an empathetic wellness companion. I do not diagnose, but I can listen and help you with practical next steps.';
-  } else if (msg.includes('thank you') || msg.includes('thanks') || msg.includes('shukriya')) {
-    core =
-      language === 'hinglish'
-        ? 'Aapne share kiya, woh bahut important hai. Hum yahin se aaram se agla chhota step choose karte hain.'
-        : 'You opening up is important. Let us choose one small and manageable next step from here.';
-  } else if (msg.includes('exam') || msg.includes('study') || msg.includes('marks')) {
-    core =
-      'It sounds like exam pressure is draining you, and that is very common among students. ' +
-      'Try one 25-minute focused study sprint, then a 5-minute break. ' +
-      'Write only 3 priority topics for today so your brain feels less overloaded.';
-  } else if (msg.includes('alone') || msg.includes('lonely') || msg.includes('no one')) {
-    core =
-      'Feeling alone can feel very heavy, and sharing it here is a strong step. ' +
-      "Can you reach out to one safe person with a simple message like, 'Can we talk for 10 mins?' " +
-      'Also, do one grounding action right now: feet on floor, slow breathing for 1 minute.';
-  } else if (msg.includes('family') || msg.includes('judge') || msg.includes('log kya')) {
-    core =
-      'Fear of judgement is real, especially when mental health is treated as taboo. ' +
-      'Your struggle does not make you weak; it makes you human. ' +
-      'Try sharing one small feeling instead of everything at once with someone you trust.';
-  } else if (msg.includes('sleep') || msg.includes('tired') || msg.includes('burnout')) {
-    core =
-      'Your body and mind both sound exhausted. ' +
-      'For tonight, aim for a digital sunset: stop scrolling 30 minutes before sleep. ' +
-      'Do a brief brain-dump list so worries are parked outside your head.';
-  } else {
-    const reflectivePrefix =
-      language === 'hinglish'
-        ? pickVariant(msg, [
-            'Main aapki baat dhyan se sun raha hoon.',
-            'Aap jo keh rahe ho, woh important hai.',
-            'Yeh jo aap feel kar rahe ho, usko lightly nahi lena chahiye.',
-          ])
-        : pickVariant(msg, [
-            'I am listening carefully to you.',
-            'What you are sharing matters.',
-            'Your feelings are valid and important here.',
-          ]);
+  const isGreeting = /\b(hi|hii|hello|hey|namaste)\b/.test(msg) && msg.split(' ').length <= 5;
+  const isIdentityQuery =
+    /\b(who are you|what are you|your name|tum (kaun|kon) ho|aap (kaun|kon) ho|aapka naam|tumhara naam)\b/.test(
+      msg
+    );
+  const isThanks = /\b(thank you|thanks|thx|shukriya|dhanyavaad|dhanyavad)\b/.test(msg);
 
-    core =
-      reflectivePrefix +
-      ` You said: "${compactMessage}". ` +
-      'Let us make this manageable with one emotion label, one 0-10 rating, and one tiny action for the next 15 minutes.';
+  if (isGreeting) {
+    core = isHinglish
+      ? pickVariant(msg, [
+          'Hi, main SaathiMind hoon. Aap safe space mein ho.',
+          'Hey, main SaathiMind hoon. Bindaas share karo, no judgment.',
+          'Namaste, main SaathiMind hoon. Main aapki baat dhyan se sununga.',
+        ])
+      : pickVariant(msg, [
+          'Hi, I am SaathiMind. You are in a safe and judgment-free space.',
+          'Hey, I am SaathiMind. You can share freely here without being judged.',
+          'Hello, I am SaathiMind. I am here to listen, not to judge.',
+        ]);
+  } else if (isIdentityQuery) {
+    core = isHinglish
+      ? 'Main SaathiMind hoon, ek empathetic wellness companion. Main diagnose nahi karta, par main aapko samajhne aur practical next step choose karne me help kar sakta hoon.'
+      : 'I am SaathiMind, an empathetic wellness companion. I do not diagnose, but I can help you unpack what you are feeling and choose a practical next step.';
+  } else if (isThanks) {
+    core = isHinglish
+      ? 'Aapne trust kiya, uske liye thank you. Yeh conversation aapke pace pe hi chalegi.'
+      : 'Thank you for trusting me with this. We can take this at your pace.';
+  } else if (msg.includes('exam') || msg.includes('study') || msg.includes('marks')) {
+    core = isHinglish
+      ? 'Exam pressure heavy lagna bilkul common hai. Chalo overload kam karte hain: sirf 3 priority topics likho, phir 25-minute ka ek focused sprint karo, uske baad 5-minute break.'
+      : 'Exam pressure can feel really heavy, and that is very common. Let us reduce overload: write just 3 priority topics, do one 25-minute focused sprint, then take a 5-minute break.';
+  } else if (msg.includes('alone') || msg.includes('lonely') || msg.includes('no one')) {
+    core = isHinglish
+      ? "Akelapan ka weight bahut heavy lag sakta hai, aur aapne share karke strong step liya hai. Kya aap ek safe person ko simple message bhej sakte ho: '10 min baat kar sakte ho?'"
+      : "Feeling alone can feel very heavy, and sharing this is a strong step. Can you text one safe person with a simple message like, 'Can we talk for 10 minutes?'";
+  } else if (msg.includes('family') || msg.includes('judge') || msg.includes('log kya')) {
+    core = isHinglish
+      ? 'Log kya kahenge ka pressure real hota hai. Aap weak nahi ho. Agar safe lage, sab kuch ek saath bolne ke bajay ek chhoti feeling se start karo.'
+      : 'Fear of judgement is real, especially where mental health is stigmatized. Your struggle does not make you weak. If it feels safe, start by sharing one small feeling instead of everything at once.';
+  } else if (msg.includes('sleep') || msg.includes('tired') || msg.includes('burnout')) {
+    core = isHinglish
+      ? 'Aap mentally aur physically dono tired lag rahe ho. Aaj raat ek simple reset try karo: sleep se 30 min pehle phone side me, aur worries ka quick brain-dump note bana do.'
+      : 'You sound mentally and physically exhausted. Try a simple reset tonight: keep your phone away 30 minutes before sleep, and do a quick brain-dump note to park worries.';
+  } else {
+    const reflectivePrefix = isHinglish
+      ? pickVariant(msg, [
+          'Main aapki baat dhyan se sun raha hoon.',
+          'Aap jo feel kar rahe ho, woh valid hai.',
+          'Yeh jo chal raha hai, uska असर genuinely heavy ho sakta hai.',
+        ])
+      : pickVariant(msg, [
+          'I am listening carefully to you.',
+          'What you are feeling is valid.',
+          'What you are carrying can genuinely feel heavy.',
+        ]);
+
+    const actionPrompt = isHinglish
+      ? 'Isko manageable banate hain: ek emotion name karo, 0-10 rate karo, aur next 15 minutes ke liye ek tiny action choose karo.'
+      : 'Let us make this manageable: name one emotion, rate it 0-10, and choose one tiny action for the next 15 minutes.';
+
+    core = `${reflectivePrefix} Tumne bola "${compactMessage}". ${actionPrompt}`;
   }
 
   const followUp =
     riskLevel === 'medium'
-      ? 'What feels hardest right now: thoughts, body stress, or people pressure?'
-      : 'Would you like a 2-minute grounding exercise or a practical plan for today?';
-
-  if (language === 'hinglish') {
-    return 'Main sun raha hoon, aur aap akela nahi ho. ' + core + ' Aapke liye yeh manageable ban sakta hai. ' + followUp;
-  }
+      ? isHinglish
+        ? pickVariant(msg + '|m', [
+            'Abhi sabse tough kya lag raha hai: thoughts, body stress, ya people pressure?',
+            'Is waqt sabse heavy part kya hai: dimag ki racing, body tension, ya social pressure?',
+          ])
+        : pickVariant(msg + '|m', [
+            'What feels hardest right now: racing thoughts, body stress, or people pressure?',
+            'What is most intense at this moment: thoughts, physical tension, or social pressure?',
+          ])
+      : isHinglish
+      ? pickVariant(msg + '|l', [
+          'Aap chaho to abhi 2-minute grounding karein ya practical plan banayein?',
+          'Next step ke liye aap kya choose karna chahoge: short grounding ya actionable plan?',
+        ])
+      : pickVariant(msg + '|l', [
+          'Would you like a 2-minute grounding exercise or a practical plan for today?',
+          'For the next step, would you prefer a short grounding exercise or an actionable plan?',
+        ]);
 
   return `${core} ${followUp}`;
 }

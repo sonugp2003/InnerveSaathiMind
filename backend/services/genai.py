@@ -233,7 +233,8 @@ User message:
 
     def _generate_local_reply(self, message: str, language: str, risk_level: str) -> str:
         msg = re.sub(r"\s+", " ", message.lower()).strip()
-        compact_message = re.sub(r"\s+", " ", message).strip()[:110]
+        is_hinglish = language == "hinglish"
+        compact_message = re.sub(r"\s+", " ", message).strip()[:110].replace('"', "'")
 
         def pick_variant(seed_text: str, options: list[str]) -> str:
             if not options:
@@ -244,52 +245,80 @@ User message:
                 hash_value = (hash_value + ord(ch) * (index + 1)) % 2147483647
             return options[hash_value % len(options)]
 
-        if re.search(r"\b(hi|hii|hello|hey|namaste)\b", msg) and len(msg.split()) <= 5:
-            core = (
-                "Hi, main SaathiMind hoon. Aap safe space mein ho. "
-                "Aaj aapko sabse zyada kis baat ka pressure feel ho raha hai?"
-                if language == "hinglish"
-                else "Hi, I am SaathiMind. You are in a safe and judgment-free space. "
-                "What is feeling heaviest for you right now?"
+        is_greeting = bool(re.search(r"\b(hi|hii|hello|hey|namaste)\b", msg)) and len(msg.split()) <= 5
+        is_identity_query = bool(
+            re.search(
+                r"\b(who are you|what are you|your name|tum (kaun|kon) ho|aap (kaun|kon) ho|aapka naam|tumhara naam)\b",
+                msg,
             )
-        elif "who are you" in msg or "what are you" in msg or "your name" in msg:
+        )
+        is_thanks = bool(re.search(r"\b(thank you|thanks|thx|shukriya|dhanyavaad|dhanyavad)\b", msg))
+
+        if is_greeting:
+            core = (
+                pick_variant(
+                    msg,
+                    [
+                        "Hi, main SaathiMind hoon. Aap safe space mein ho.",
+                        "Hey, main SaathiMind hoon. Bindaas share karo, no judgment.",
+                        "Namaste, main SaathiMind hoon. Main aapki baat dhyan se sununga.",
+                    ],
+                )
+                if is_hinglish
+                else pick_variant(
+                    msg,
+                    [
+                        "Hi, I am SaathiMind. You are in a safe and judgment-free space.",
+                        "Hey, I am SaathiMind. You can share freely here without being judged.",
+                        "Hello, I am SaathiMind. I am here to listen, not to judge.",
+                    ],
+                )
+            )
+        elif is_identity_query:
             core = (
                 "Main SaathiMind hoon, ek empathetic wellness companion. Main diagnose nahi karta, "
-                "par aapko sun sakta hoon aur practical next steps de sakta hoon."
-                if language == "hinglish"
+                "par main aapko samajhne aur practical next step choose karne me help kar sakta hoon."
+                if is_hinglish
                 else "I am SaathiMind, an empathetic wellness companion. I do not diagnose, "
-                "but I can listen and help you with practical next steps."
+                "but I can help you unpack what you are feeling and choose a practical next step."
             )
-        elif "thank you" in msg or "thanks" in msg or "shukriya" in msg:
+        elif is_thanks:
             core = (
-                "Aapne share kiya, woh bahut important hai. Hum yahin se aaram se agla chhota step choose karte hain."
-                if language == "hinglish"
-                else "You opening up is important. Let us choose one small and manageable next step from here."
+                "Aapne trust kiya, uske liye thank you. Yeh conversation aapke pace pe hi chalegi."
+                if is_hinglish
+                else "Thank you for trusting me with this. We can take this at your pace."
             )
-
         elif "exam" in msg or "study" in msg or "marks" in msg:
             core = (
-                "It sounds like exam pressure is draining you, and that is very common among students. "
-                "Try one 25-minute focused study sprint, then a 5-minute break. "
-                "Write only 3 priority topics for today so your brain feels less overloaded."
+                "Exam pressure heavy lagna bilkul common hai. Chalo overload kam karte hain: sirf 3 priority "
+                "topics likho, phir 25-minute ka ek focused sprint karo, uske baad 5-minute break."
+                if is_hinglish
+                else "Exam pressure can feel really heavy, and that is very common. Let us reduce overload: "
+                "write just 3 priority topics, do one 25-minute focused sprint, then take a 5-minute break."
             )
         elif "alone" in msg or "lonely" in msg or "no one" in msg:
             core = (
-                "Feeling alone can feel very heavy, and sharing it here is a strong step. "
-                "Can you reach out to one safe person with a simple message like, 'Can we talk for 10 mins?' "
-                "Also, do one grounding action right now: feet on floor, slow breathing for 1 minute."
+                "Akelapan ka weight bahut heavy lag sakta hai, aur aapne share karke strong step liya hai. "
+                "Kya aap ek safe person ko simple message bhej sakte ho: '10 min baat kar sakte ho?'"
+                if is_hinglish
+                else "Feeling alone can feel very heavy, and sharing this is a strong step. "
+                "Can you text one safe person with a simple message like, 'Can we talk for 10 minutes?'"
             )
         elif "family" in msg or "judge" in msg or "log kya" in msg:
             core = (
-                "Fear of judgement is real, especially when mental health is treated as taboo. "
-                "Your struggle does not make you weak; it makes you human. "
-                "Try sharing one small feeling instead of everything at once with someone you trust."
+                "Log kya kahenge ka pressure real hota hai. Aap weak nahi ho. Agar safe lage, "
+                "sab kuch ek saath bolne ke bajay ek chhoti feeling se start karo."
+                if is_hinglish
+                else "Fear of judgement is real, especially where mental health is stigmatized. "
+                "Your struggle does not make you weak. If it feels safe, start by sharing one small feeling instead of everything at once."
             )
         elif "sleep" in msg or "tired" in msg or "burnout" in msg:
             core = (
-                "Your body and mind both sound exhausted. "
-                "For tonight, aim for a digital sunset: stop scrolling 30 minutes before sleep. "
-                "Do a brief brain-dump list so worries are parked outside your head."
+                "Aap mentally aur physically dono tired lag rahe ho. Aaj raat ek simple reset try karo: "
+                "sleep se 30 min pehle phone side me, aur worries ka quick brain-dump note bana do."
+                if is_hinglish
+                else "You sound mentally and physically exhausted. Try a simple reset tonight: keep your phone away "
+                "30 minutes before sleep, and do a quick brain-dump note to park worries."
             )
         else:
             reflective_prefix = (
@@ -297,39 +326,65 @@ User message:
                     msg,
                     [
                         "Main aapki baat dhyan se sun raha hoon.",
-                        "Aap jo keh rahe ho, woh important hai.",
-                        "Yeh jo aap feel kar rahe ho, usko lightly nahi lena chahiye.",
+                        "Aap jo feel kar rahe ho, woh valid hai.",
+                        "Yeh jo chal raha hai, uska asar genuinely heavy ho sakta hai.",
                     ],
                 )
-                if language == "hinglish"
+                if is_hinglish
                 else pick_variant(
                     msg,
                     [
                         "I am listening carefully to you.",
-                        "What you are sharing matters.",
-                        "Your feelings are valid and important here.",
+                        "What you are feeling is valid.",
+                        "What you are carrying can genuinely feel heavy.",
                     ],
                 )
             )
-            core = (
-                f"{reflective_prefix} You said: \"{compact_message}\". "
-                "Let us make this manageable with one emotion label, one 0-10 rating, "
-                "and one tiny action for the next 15 minutes."
+            action_prompt = (
+                "Isko manageable banate hain: ek emotion name karo, 0-10 rate karo, "
+                "aur next 15 minutes ke liye ek tiny action choose karo."
+                if is_hinglish
+                else "Let us make this manageable: name one emotion, rate it 0-10, "
+                "and choose one tiny action for the next 15 minutes."
             )
+            subject_line = f'Tumne bola "{compact_message}".' if is_hinglish else f'You said "{compact_message}".'
+            core = f"{reflective_prefix} {subject_line} {action_prompt}"
 
-        follow_up = (
-            "What feels hardest right now: thoughts, body stress, or people pressure?"
-            if risk_level == "medium"
-            else "Would you like a 2-minute grounding exercise or a practical plan for today?"
-        )
-
-        if language == "hinglish":
-            return (
-                "Main sun raha hoon, aur aap akela nahi ho. "
-                + core
-                + " "
-                + "Aapke liye yeh manageable ban sakta hai. "
-                + follow_up
+        if risk_level == "medium":
+            follow_up = (
+                pick_variant(
+                    msg + "|m",
+                    [
+                        "Abhi sabse tough kya lag raha hai: thoughts, body stress, ya people pressure?",
+                        "Is waqt sabse heavy part kya hai: dimag ki racing, body tension, ya social pressure?",
+                    ],
+                )
+                if is_hinglish
+                else pick_variant(
+                    msg + "|m",
+                    [
+                        "What feels hardest right now: racing thoughts, body stress, or people pressure?",
+                        "What is most intense at this moment: thoughts, physical tension, or social pressure?",
+                    ],
+                )
+            )
+        else:
+            follow_up = (
+                pick_variant(
+                    msg + "|l",
+                    [
+                        "Aap chaho to abhi 2-minute grounding karein ya practical plan banayein?",
+                        "Next step ke liye aap kya choose karna chahoge: short grounding ya actionable plan?",
+                    ],
+                )
+                if is_hinglish
+                else pick_variant(
+                    msg + "|l",
+                    [
+                        "Would you like a 2-minute grounding exercise or a practical plan for today?",
+                        "For the next step, would you prefer a short grounding exercise or an actionable plan?",
+                    ],
+                )
             )
 
         return core + " " + follow_up
