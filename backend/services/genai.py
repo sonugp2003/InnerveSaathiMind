@@ -67,6 +67,7 @@ class WellnessAssistant:
         safety_report: dict[str, Any],
     ) -> str:
         risk_level = str(safety_report.get("risk_level", "low"))
+        gemini_failed = False
         if risk_level == "high":
             return (
                 "I am really glad you shared this. Your safety matters more than anything right now. "
@@ -89,6 +90,7 @@ class WellnessAssistant:
                 return self._generate_gemini_api_reply(message, history, language)
             except Exception as exc:
                 self.error = f"Gemini API runtime failed: {exc}"
+                gemini_failed = True
 
         if self.vertex_enabled:
             try:
@@ -96,7 +98,7 @@ class WellnessAssistant:
             except Exception as exc:
                 self.error = f"Vertex runtime failed: {exc}"
 
-        if self.gemini_api_enabled:
+        if self.gemini_api_enabled and not gemini_failed:
             try:
                 return self._generate_gemini_api_reply(message, history, language)
             except Exception as exc:
