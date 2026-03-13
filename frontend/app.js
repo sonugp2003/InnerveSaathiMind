@@ -388,7 +388,10 @@ async function healthRequest() {
 
   return {
     status: 'ok',
+    engine: 'local',
     vertex_enabled: false,
+    gemini_enabled: false,
+    gemini_model: 'gemini-1.5-flash',
     vertex_model: 'local-browser-fallback',
     fallback_reason: 'Running without backend API.',
   };
@@ -604,6 +607,8 @@ async function loadHealth() {
     const data = await healthRequest();
     if (data.vertex_enabled) {
       engineStatus.textContent = `AI Engine: Vertex (${data.vertex_model})`;
+    } else if (data.gemini_enabled) {
+      engineStatus.textContent = `AI Engine: Gemini API (${data.gemini_model})`;
     } else if (shouldTryRemoteApi()) {
       engineStatus.textContent = 'AI Engine: Local empathetic fallback';
     } else {

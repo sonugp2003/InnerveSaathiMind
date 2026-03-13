@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import httpx
+
 from backend.config import Settings
 
 try:
@@ -16,26 +18,33 @@ class WellnessAssistant:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self.vertex_enabled = False
+        self.gemini_api_enabled = False
         self.model: Any | None = None
         self.error: str | None = None
 
-        if not settings.use_vertex_ai:
-            return
+        if settings.use_vertex_ai:
+            if not settings.gcp_project:
+                self.error = "GOOGLE_CLOUD_PROJECT is missing."
+            elif vertexai is None or GenerativeModel is None:
+                self.error = "Vertex AI SDK import failed."
+            else:
+                try:
+                    vertexai.init(project=settings.gcp_project, location=settings.gcp_location)
+                    self.model = GenerativeModel(settings.vertex_model)
+                    self.vertex_enabled = True
+                except Exception as exc:  # pragma: no cover
+                    self.error = f"Vertex AI init failed: {exc}"
 
-        if not settings.gcp_project:
-            self.error = "GOOGLE_CLOUD_PROJECT is missing."
-            return
+        if not self.vertex_enabled and settings.gemini_api_key:
+            self.gemini_api_enabled = True
 
-        if vertexai is None or GenerativeModel is None:
-            self.error = "Vertex AI SDK import failed."
-            return
-
-        try:
-            vertexai.init(project=settings.gcp_project, location=settings.gcp_location)
-            self.model = GenerativeModel(settings.vertex_model)
-            self.vertex_enabled = True
-        except Exception as exc:  # pragma: no cover
-            self.error = f"Vertex AI init failed: {exc}"
+    @property
+    def engine_name(self) -> str:
+        if self.vertex_enabled:
+            return "vertex"
+        if self.gemini_api_enabled:
+            return "gemini-api"
+        return "local"
 
     def generate_reply(
         self,
@@ -55,6 +64,12 @@ class WellnessAssistant:
         if self.vertex_enabled:
             try:
                 return self._generate_vertex_reply(message, history, language)
+            except Exception:
+                pass
+
+        if self.gemini_api_enabled:
+            try:
+                return self._generate_gemini_api_reply(message, history, language)
             except Exception:
                 pass
 
@@ -157,6 +172,61 @@ User message:
 
         text = getattr(response, "text", "")
         return text.strip() if text else self._generate_local_reply(message, language, "low")
+
+    def _generate_gemini_api_reply(
+        self,
+        message: str,
+        history: list[dict[str, str]],
+        language: str,
+    ) -> str:
+        style_hint = (
+            "Use natural Hinglish, short empathetic lines, and practical guidance."
+            if language == "hinglish"
+            else "Use warm and clear English, concise and practical."
+        )
+
+        history_block = "\n".join([f"{item['role']}: {item['content']}" for item in history])
+
+        prompt = f"""
+You are SaathiMind, a confidential youth wellness companion for India.
+Guidelines:
+- Be empathetic, non-judgmental, and culturally sensitive.
+- Do not diagnose or prescribe medication.
+- Normalize help-seeking and reduce stigma.
+- Give 2-4 practical micro-actions.
+- Keep response under 140 words.
+- End with one gentle follow-up question.
+- {style_hint}
+
+Conversation so far:
+{history_block}
+
+User message:
+{message}
+""".strip()
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.settings.gemini_model}:generateContent"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.6, "maxOutputTokens": 280},
+        }
+
+        response = httpx.post(
+            url,
+            params={"key": self.settings.gemini_api_key},
+            json=payload,
+            timeout=20.0,
+        )
+        response.raise_for_status()
+        body = response.json()
+
+        candidates = body.get("candidates", [])
+        if not candidates:
+            return self._generate_local_reply(message, language, "low")
+
+        parts = candidates[0].get("content", {}).get("parts", [])
+        text = "".join([str(item.get("text", "")) for item in parts]).strip()
+        return text if text else self._generate_local_reply(message, language, "low")
 
     def _generate_local_reply(self, message: str, language: str, risk_level: str) -> str:
         msg = message.lower()

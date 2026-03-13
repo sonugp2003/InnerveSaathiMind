@@ -72,7 +72,10 @@ def index() -> FileResponse:
 def health() -> dict[str, object]:
     return {
         "status": "ok",
+        "engine": assistant.engine_name,
         "vertex_enabled": assistant.vertex_enabled,
+        "gemini_enabled": assistant.gemini_api_enabled,
+        "gemini_model": settings.gemini_model,
         "vertex_model": settings.vertex_model,
         "fallback_reason": assistant.error,
     }
